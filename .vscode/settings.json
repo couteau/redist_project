@@ -20,24 +20,21 @@
     "[python]": {
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
-            "source.organizeImports": true,
+            "source.organizeImports": "explicit"
         },
     },
-    "qtForPython.rcc.args": [
-        "-o \"${workspaceFolder}${pathSeparator}redistricting${pathSeparator}${fileBasenameNoExtension}.py\""
-    ],
-    "qtForPython.uic.args": [
-        "-o",
-        "${workspaceFolder}${pathSeparator}redistricting${pathSeparator}gui${pathSeparator}ui${pathSeparator}${fileBasenameNoExtension}.py"
+    "qtForPython.rcc.options": [
+        "-o \"${workspaceFolder}${pathSeparator}redistricting${pathSeparator}${fileBasenameNoExtension}_resources.py\""
     ],
     "qtForPython.uic.options": [
         "-o",
         "${workspaceFolder}${pathSeparator}redistricting${pathSeparator}gui${pathSeparator}ui${pathSeparator}${resourceBasenameNoExtension}.py"
     ],
-    "editor.formatOnPaste": true,
+    "editor.formatOnPaste": false,
     "editor.formatOnSave": true,
     "editor.formatOnType": true,
     "pylint.path": [
-        "/Users/stuart/anaconda3/envs/qgis_plugin/bin/pylint"
+        "{$userHome}/anaconda3/envs/qgis_plugin/bin/pylint"
     ],
+    "jupyter.notebookFileRoot": "${workspaceFolder}",
 }

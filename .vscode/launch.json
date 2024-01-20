@@ -11,11 +11,16 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "al",
-                "${workspaceFolder}/../gpkg_redist_data/data/alabama.gpkg",
-                "${workspaceFolder}/../gpkg_redist_data/data/Alabama"
+                "${workspaceFolder}/../gpkg_redist_data/data/Tennessee",
+                "${workspaceFolder}/../gpkg_redist_data/data/tennessee.gpkg",
+                "--state",
+                "tn",
+                "-a",
+                "2021",
+                "-r",
+                "20210902"
             ],
-            "justMyCode": false
+            "justMyCode": true
         },
         {
             "name": "Python: Remote Attach",
