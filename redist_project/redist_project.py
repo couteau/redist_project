@@ -25,7 +25,21 @@
  *                                                                         *
  ***************************************************************************/
 """
+from qgis.core import QgsApplication
 from qgis.gui import QgisInterface
+from qgis.PyQt.QtCore import (
+    QCoreApplication,
+    Qt
+)
+from qgis.PyQt.QtWidgets import (
+    QAction,
+    QDialog,
+    QProgressDialog
+)
+
+from .core.state import StateList
+from .gui.DlgNewProject import NewProjectDialog
+from .pkg_utils.download import StateDownloadTask
 
 
 class RdProjectGenerator:
@@ -34,10 +48,50 @@ class RdProjectGenerator:
     def __init__(self, iface: QgisInterface):
         self.name = self.__class__.__name__
         self.iface = iface
-        self.canvas = self.iface.mapCanvas()
+
+        self.newProjectAction = None
+        self.states = StateList("2020")
+
+    @staticmethod
+    def tr(message):
+        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
+        return QCoreApplication.translate('redistricting', message)
 
     def initGui(self):
         """Create the menu entries, toolbar buttons, actions, and dock widgets."""
+        self.newProjectAction = QAction(
+            self.iface.mainWindow()
+        )
+        self.newProjectAction.setIcon(
+            QgsApplication.getThemeIcon('/mActionFileNew.svg'))
+        self.newProjectAction.setText(self.tr("New Districting Project"))
+        self.newProjectAction.setToolTip(
+            self.tr("Create a new redistricting project"))
+        self.newProjectAction.triggered.connect(self.newProject)
+
+        menu = self.iface.projectMenu()
+        menu.insertAction(menu.actions()[1], self.newProjectAction)
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
+
+    def newProject(self):
+        dlg = NewProjectDialog(self.states, self.iface.mainWindow())
+        if dlg.exec_() == QDialog.Accepted:
+            pass
+
+    def download_gpkg(self, state: str):
+        msg = f"Downloading redistricting data for {self.states[state].name}"
+        dlg = QProgressDialog(
+            msg, self.tr('Cancel'),
+            0, 100,
+            self.iface.mainWindow(),
+            Qt.WindowStaysOnTopHint
+        )
+        dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+
+        task = self.states[state].download_gpkg(False)
+        dlg.canceled.connect(task.cancel)
+        task.taskTerminated.connect(dlg.close)
+        task.taskCompleted.connect(dlg.close)
+        QgsApplication.taskManager().addTask(task)
