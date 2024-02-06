@@ -1,8 +1,8 @@
 # Mandatory items:
 [general]
-name=QGIS Redistricting - Project Generator
+name=QGIS Redistricting - U.S. Project Generator
 qgisMinimumVersion=3.18
-description=Create base projects for QGIS Redistricting plugin from packaged datasets
+description=Create base projects for QGIS Redistricting plugin from packaged U.S. Census datasets
 version=0.0.1-alpha
 author=Cryptodira
 email=stuart@cryptodira.org
@@ -35,7 +35,7 @@ deprecated=False
 # Since QGIS 3.8, a comma separated list of plugins to be installed
 # (or upgraded) can be specified.
 # Check the documentation for more information.
-plugin_dependencies=qgis_redistricting
+plugin_dependencies=redistricting
 
 # Category of the plugin: Raster, Vector, Database or Web
 category=Vector

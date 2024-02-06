@@ -10,16 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": [
-                "${workspaceFolder}/../gpkg_redist_data/data/Tennessee",
-                "${workspaceFolder}/../gpkg_redist_data/data/tennessee.gpkg",
-                "--state",
-                "tn",
-                "-a",
-                "2021",
-                "-r",
-                "20210902"
-            ],
+            "args": [],
             "justMyCode": true
         },
         {
@@ -33,8 +24,8 @@
             "justMyCode": false,
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}",
-                    "remoteRoot": "${workspaceFolder}"
+                    "localRoot": "${workspaceFolder}/redist_project",
+                    "remoteRoot": "${userHome}/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/redist_project"
                 }
             ]
         },

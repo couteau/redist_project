@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>wzpPlanParameters</class>
+ <widget class="QWizardPage" name="wzpPlanParameters">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>WizardPage</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblNumDistricts">
+     <property name="text">
+      <string>&amp;Number of Districts</string>
+     </property>
+     <property name="buddy">
+      <cstring>sbxNumDistricts</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2">
+    <widget class="QSpinBox" name="sbxNumDistricts">
+     <property name="toolTip">
+      <string>Enter the total number of districts in your plan</string>
+     </property>
+     <property name="minimum">
+      <number>2</number>
+     </property>
+     <property name="maximum">
+      <number>1000</number>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblNumSeats">
+     <property name="text">
+      <string>Number of &amp;Seats</string>
+     </property>
+     <property name="buddy">
+      <cstring>sbxNumSeats</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QSpinBox" name="sbxNumSeats">
+     <property name="toolTip">
+      <string>Enter the number of seats that are elected from the districts in this plan</string>
+     </property>
+     <property name="minimum">
+      <number>2</number>
+     </property>
+     <property name="maximum">
+      <number>1000</number>
+     </property>
+     <property name="value">
+      <number>2</number>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblMaxDeviation">
+     <property name="text">
+      <string>Maximum Deviation</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QCheckBox" name="cbIncludeVAP">
+     <property name="text">
+      <string>Include VAP</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QCheckBox" name="cbIncludeCVAP">
+     <property name="text">
+      <string>Include CVAP</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="2">
+    <widget class="QCheckBox" name="cbIncludeReg">
+     <property name="text">
+      <string>Include Registered Voters</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="2">
+    <widget class="QDoubleSpinBox" name="sbxMaxDeviation">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="prefix">
+      <string>±</string>
+     </property>
+     <property name="suffix">
+      <string>%</string>
+     </property>
+     <property name="singleStep">
+      <double>0.100000000000000</double>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>sbxNumDistricts</tabstop>
+  <tabstop>sbxNumSeats</tabstop>
+  <tabstop>sbxMaxDeviation</tabstop>
+  <tabstop>cbIncludeVAP</tabstop>
+  <tabstop>cbIncludeCVAP</tabstop>
+  <tabstop>cbIncludeReg</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

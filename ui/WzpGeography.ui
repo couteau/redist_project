@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>wzpGeography</class>
+ <widget class="QWizardPage" name="wzpGeography">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>421</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>WizardPage</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblState">
+     <property name="text">
+      <string>State</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbState</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1" colspan="2">
+    <widget class="QComboBox" name="cmbState">
+     <property name="placeholderText">
+      <string>Choose state</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="3">
+    <widget class="QGroupBox" name="gbxSubdivision">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="title">
+      <string>District Geography</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <item row="1" column="0" colspan="2">
+       <widget class="QRadioButton" name="rbSubdivision">
+        <property name="text">
+         <string>Subdivision</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="lblSubdivisionName">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Subdivision Name</string>
+        </property>
+        <property name="buddy">
+         <cstring>cmbSubdivisionName</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="lblSubdivisionGeography">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Subdivision Geography</string>
+        </property>
+        <property name="buddy">
+         <cstring>cmbSubdivisionGeography</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="cmbSubdivisionGeography">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="placeholderText">
+         <string>District a subdivision</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QComboBox" name="cmbSubdivisionName">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="placeholderText">
+         <string>Select subdivision to district</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="2">
+       <widget class="QRadioButton" name="rbEntireState">
+        <property name="text">
+         <string>Entire State</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lbDecennial">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Decennial Census</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmDecennial</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1" colspan="2">
+    <widget class="QComboBox" name="cmDecennial"/>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>cmbState</tabstop>
+  <tabstop>rbEntireState</tabstop>
+  <tabstop>rbSubdivision</tabstop>
+  <tabstop>cmbSubdivisionGeography</tabstop>
+  <tabstop>cmbSubdivisionName</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>rbSubdivision</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>lblSubdivisionGeography</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>209</x>
+     <y>154</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>96</x>
+     <y>195</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>rbSubdivision</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbSubdivisionGeography</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>209</x>
+     <y>154</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>284</x>
+     <y>196</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>rbSubdivision</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>lblSubdivisionName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>209</x>
+     <y>154</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>96</x>
+     <y>243</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>rbSubdivision</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbSubdivisionName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>209</x>
+     <y>154</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>284</x>
+     <y>244</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

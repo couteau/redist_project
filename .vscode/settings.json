@@ -24,17 +24,17 @@
         },
     },
     "qtForPython.rcc.options": [
-        "-o \"${workspaceFolder}${pathSeparator}redistricting${pathSeparator}${fileBasenameNoExtension}_resources.py\""
+        "-o \"${workspaceFolder}${pathSeparator}redist_project${pathSeparator}${fileBasenameNoExtension}_resources.py\""
     ],
     "qtForPython.uic.options": [
         "-o",
-        "${workspaceFolder}${pathSeparator}redistricting${pathSeparator}gui${pathSeparator}ui${pathSeparator}${resourceBasenameNoExtension}.py"
+        "${workspaceFolder}${pathSeparator}redist_project${pathSeparator}gui${pathSeparator}ui${pathSeparator}${resourceBasenameNoExtension}.py"
     ],
     "editor.formatOnPaste": false,
     "editor.formatOnSave": true,
     "editor.formatOnType": true,
-    "pylint.path": [
-        "{$userHome}/anaconda3/envs/qgis_plugin/bin/pylint"
-    ],
     "jupyter.notebookFileRoot": "${workspaceFolder}",
+    "qtForPython.designer.path": "~/anaconda3/envs/qgis_plugin/bin/Designer.app/Contents/MacOS/Designer",
+    "qtForPython.uic.path": "~/anaconda3/envs/qgis_plugin/bin/pyuic5",
+    "qtForPython.qmlls.enabled": false,
 }
