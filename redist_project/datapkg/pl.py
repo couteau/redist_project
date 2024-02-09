@@ -461,6 +461,7 @@ def create_table_script(geog, year, srid, include_pop_fields=True):
         SELECT gpkgAddGeometryColumn("{table}", "geom", "MULTIPOLYGON", 0, 0, {srid});
         SELECT gpkgAddGeometryTriggers("{table}", "geom");
         SELECT gpkgAddSpatialIndex("{table}", "geom");
+        INSERT INTO gpkg_ogr_contents (table_name) VALUES ('{table}');
     """
 
     create_indices = geographies[geog].indices.format(
@@ -480,14 +481,11 @@ def insert_data_script(geog, year, fields):
 def create_layer(db: sqlite3.Connection, df: gpd.GeoDataFrame, dec_year: str, geog: str):
     crs: pyproj.CRS = df.crs
     org, srid = crs.to_authority()
-    srid = int(srid)
-    s = db.execute(
-        f"SELECT COUNT(srs_id) FROM gpkg_spatial_ref_sys where srs_id = {srid}")
-    if s.fetchone()[0] == 0:
-        db.execute(
-            "INSERT INTO gpkg_spatial_ref_sys (srs_name, srs_id, organization, organization_coordsys_id, definition) VALUES (?, ?, ?, ?, ?)",
-            [crs.name, srid, org, srid, crs.to_wkt()]
-        )
+    if org == "EPSG":
+        s = db.execute(
+            f"SELECT COUNT(srs_id) FROM gpkg_spatial_ref_sys where srs_id = {srid}")
+        if s.fetchone()[0] == 0:
+            db.execute(f"SELECT gpkgInsertEpsgSRID({srid}")
 
     s = create_table_script(geog, dec_year, srid)
     db.executescript(s)
@@ -503,6 +501,9 @@ def create_layer(db: sqlite3.Connection, df: gpd.GeoDataFrame, dec_year: str, ge
     sql = insert_data_script(geog, dec_year, fields)
     db.executemany(sql, df[fields].to_wkt().itertuples(index=False))
     # df.to_file(gpkg, layer=f"{geographies[g].name}{dec_year[2:]}", driver="GPKG")
+    db.execute(
+        f"UPDATE gpkg_ogr_contents SET feature_count = (SELECT COUNT(*) FROM {geographies[geog].name}{dec_year[-2:]})"
+    )
 
 
 def process_pl(
@@ -538,6 +539,9 @@ def process_pl(
     with spatialite_connect(gpkg) as db:
         if init_gpkg:
             db.execute("SELECT gpkgCreateBaseTables()")
+            db.execute(
+                "CREATE TABLE gpkg_ogr_contents (table_name TEXT NOT NULL PRIMARY KEY, feature_count INTEGER DEFAULT NULL")
+
         logging.info("Tabulating %s PL 94-171 data", dec_year)
         pl_data = load_pl_data(st, dec_year, src_path)
         if progress:
