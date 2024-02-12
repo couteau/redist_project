@@ -23,6 +23,7 @@
 """
 import json
 import pathlib
+from typing import Optional
 
 from osgeo import ogr
 from qgis.core import (
@@ -139,10 +140,10 @@ def build_project(
         include_cvap: bool = False,
         include_vr: bool = False,
         geogs: dict[str, Geography] = None,
-        subdiv_geog: str | None = None,
-        subdiv_id: str | None = None,
-        fields: list[str] = None,
-        base_map: bool = False
+        subdiv_geog: Optional[str] = None,
+        subdiv_id: Optional[str] = None,
+        fields: Optional[list[str]] = None,
+        base_map: Optional[bool] = False
 ):
     project = QgsProject.instance()
     crs = QgsCoordinateReferenceSystem("EPSG:4269")

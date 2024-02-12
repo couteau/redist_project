@@ -24,7 +24,7 @@
         },
     },
     "qtForPython.rcc.options": [
-        "-o \"${workspaceFolder}${pathSeparator}redist_project${pathSeparator}${fileBasenameNoExtension}_resources.py\""
+        "-o \"${workspaceFolder}${pathSeparator}redist_project${pathSeparator}resources.py\""
     ],
     "qtForPython.uic.options": [
         "-o",

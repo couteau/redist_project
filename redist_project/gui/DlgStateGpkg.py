@@ -1,3 +1,8 @@
+from typing import (
+    Optional,
+    Union
+)
+
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -12,7 +17,7 @@ from .ui.DlgStateGpkg import Ui_dlgDownloadStateGpkg
 
 
 class DlgStateGpkg(Ui_dlgDownloadStateGpkg, QDialog):
-    def __init__(self, state: State, parent: QWidget | None = None, flags: Qt.WindowFlags | Qt.WindowType = Qt.WindowFlags()):
+    def __init__(self, state: State, parent: Optional[QWidget] = None, flags: Union[Qt.WindowFlags, Qt.WindowType] = Qt.WindowFlags()):
         super().__init__(parent, flags)
         self.setupUi(self)
         self.state = state

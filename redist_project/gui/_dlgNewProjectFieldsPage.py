@@ -23,7 +23,10 @@
  ***************************************************************************/
 """
 from collections.abc import Iterable
-from typing import Any
+from typing import (
+    Any,
+    Optional
+)
 
 from qgis.PyQt.QtCore import (
     QAbstractListModel,
@@ -46,7 +49,7 @@ from .ui.WzpAddFields import Ui_wzpAddFields
 
 
 class FieldListModel(QAbstractListModel):
-    def __init__(self, src_fields: dict[str, dict], fields: list[str], source=True, parent: QObject | None = None):
+    def __init__(self, src_fields: dict[str, dict], fields: list[str], source=True, parent: Optional[QObject] = None):
         super().__init__(parent)
         self.fields = fields
         self.src_fields = src_fields
@@ -260,7 +263,7 @@ class DlgNewProjectFieldsPage(Ui_wzpAddFields, QWizardPage):
         self.src_model.endResetModel()
         self.updateButtons()
 
-    def moveFields(self, add: bool, selected: list[int] | None = None):
+    def moveFields(self, add: bool, selected: Optional[list[int]] = None):
         self.src_model.beginResetModel()
         self.dest_model.beginResetModel()
         fields = [f for f in self.src_fields if (f in self._fields) != add]

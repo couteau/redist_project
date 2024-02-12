@@ -29,6 +29,7 @@ import sqlite3
 import zipfile
 from collections.abc import Callable
 from tempfile import mkdtemp
+from typing import Union
 
 import geopandas as gpd
 import numpy as np
@@ -123,7 +124,7 @@ def download(
     url: str,
     dest_path: pathlib.Path,
     extract_to: pathlib.Path = None,
-    progress: Callable[[int | float], None] = None
+    progress: Callable[[Union[int, float]], None] = None
 ):
     r = requests.get(url, allow_redirects=True, timeout=60, stream=True)
     if not r.ok:

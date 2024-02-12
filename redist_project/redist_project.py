@@ -29,6 +29,7 @@ import json
 import logging
 import pathlib
 from copy import deepcopy
+from typing import Optional
 
 from qgis.core import (
     QgsApplication,
@@ -69,7 +70,7 @@ from .core.state import (
 from .gui.DlgNewPlan import NewPlanDialog
 from .gui.DlgNewProject import NewProjectDialog
 from .gui.DlgStateGpkg import DlgStateGpkg
-from .redist_project_resources import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from .resources import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 
 class RdProjectGenerator:
@@ -317,7 +318,7 @@ class RdProjectGenerator:
         logging.root.setLevel(logging.INFO)
         QgsApplication.taskManager().addTask(task)
 
-    def stateChanged(self, state: State | None):
+    def stateChanged(self, state: Optional[State]):
         if state is None:
             return
 

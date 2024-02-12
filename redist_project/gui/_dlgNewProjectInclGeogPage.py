@@ -22,6 +22,8 @@
  *                                                                         *
  ***************************************************************************/
 """
+from typing import Optional
+
 from qgis.PyQt.QtWidgets import (
     QWidget,
     QWizardPage
@@ -32,7 +34,7 @@ from .ui.WzpInclGeogs import Ui_wzpIncludeGeography
 
 
 class DlgNewProjectIncludeGeographyPage(Ui_wzpIncludeGeography, QWizardPage):
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setupUi(self)
         self.geogWidgets = (self.cbAIANNH, self.cbBlkGrp, self.cbConcity, self. cbCounty,

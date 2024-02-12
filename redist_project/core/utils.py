@@ -22,7 +22,10 @@
  *                                                                         *
  ***************************************************************************/
 """
-from typing import overload
+from typing import (
+    Optional,
+    overload
+)
 
 from qgis.PyQt.QtCore import QCoreApplication
 
@@ -37,7 +40,7 @@ def tr(context: str, message: str):
     pass
 
 
-def tr(ctx_or_msg: str, message: str | None = None):
+def tr(ctx_or_msg: str, message: Optional[str] = None):
     """Get the translation for a string using Qt translation API.
 
             :param ctx_or_msg: Translation context or string for translation.
