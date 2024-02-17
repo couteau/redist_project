@@ -173,6 +173,7 @@ def build_project(
     styles = load_styles()
 
     blocks = None
+    layers = []
     plan_geogs = []
     for geog in geogs.values():
         lyrname = f"{geog.name}{state.year[-2:]}"
@@ -189,6 +190,7 @@ def build_project(
                 lyr.setSubsetString(f"fid in ({','.join(ids)})")
 
         project.addMapLayer(lyr)
+        layers.append(lyr)
         if geog.geog == "b":
             blocks = lyr
         else:
@@ -198,8 +200,12 @@ def build_project(
 
     if subdiv_geog is not None:
         project.addMapLayer(subdiv_layer)
+        layers.append(subdiv_layer)
         subdiv_layer.loadNamedStyle(":/plugins/redist_project/style/county.qml")
         subdiv_layer.setLabelsEnabled(False)
+
+    for rel in project.relationManager().discoverRelations([], layers):
+        project.relationManager().addRelation(rel)
 
     if base_map:
         add_base_map(project)
