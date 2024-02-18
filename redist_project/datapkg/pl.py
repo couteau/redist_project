@@ -486,7 +486,7 @@ def create_layer(db: sqlite3.Connection, df: gpd.GeoDataFrame, dec_year: str, ge
         s = db.execute(
             f"SELECT COUNT(srs_id) FROM gpkg_spatial_ref_sys where srs_id = {srid}")
         if s.fetchone()[0] == 0:
-            db.execute(f"SELECT gpkgInsertEpsgSRID({srid}")
+            db.execute(f"SELECT gpkgInsertEpsgSRID({srid})")
 
     s = create_table_script(geog, dec_year, srid)
     db.executescript(s)
@@ -541,7 +541,7 @@ def process_pl(
         if init_gpkg:
             db.execute("SELECT gpkgCreateBaseTables()")
             db.execute(
-                "CREATE TABLE gpkg_ogr_contents (table_name TEXT NOT NULL PRIMARY KEY, feature_count INTEGER DEFAULT NULL")
+                "CREATE TABLE gpkg_ogr_contents (table_name TEXT NOT NULL PRIMARY KEY, feature_count INTEGER DEFAULT NULL)")
 
         logging.info("Tabulating %s PL 94-171 data", dec_year)
         pl_data = load_pl_data(st, dec_year, src_path)

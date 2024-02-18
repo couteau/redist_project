@@ -293,7 +293,10 @@ class RdProjectGenerator:
     def build_gpkg(self, state: State, dec_year, cvap_year, vr_path, parent: QWidget = None):
         def update_progress(p):
             dlg.setValue(round(p))
-            dlg.setLabelText(task.description())
+            text = task.description()
+            if len(text) > 49:
+                text = text[:23] + "..." + text[-23:]
+            dlg.setLabelText(text)
         msg = self.tr("Building redistricting data package for %s") % state.name
         if parent is None:
             parent = self.iface.mainWindow()

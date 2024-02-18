@@ -91,7 +91,7 @@ class BuildGeopackageTask(QgsTask):
         self.geogs = geogs
         self.vr_path = vr_path
 
-    def updateDescription(self, record):
+    def updateDescription(self, record: logging.LogRecord):
         self.setDescription(record.getMessage())
         self.progressChanged.emit(self.progress())
 
