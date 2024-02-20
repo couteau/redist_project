@@ -104,6 +104,7 @@ class RdProjectGenerator:
         self.redist_plugin: Redistricting = plugins["redistricting"]
 
         self.project.readProjectWithContext.connect(self.onReadProject)
+        self.project.cleared.connect(self.onCloseProject)
 
         self.newProjectAction = QAction(
             self.iface.mainWindow()
@@ -158,6 +159,11 @@ class RdProjectGenerator:
 
     def onReadProject(self, doc: QDomDocument, context: QgsReadWriteContext):  # pylint: disable=unused-argument
         self.readProjectParams()
+
+    def onCloseProject(self):
+        self.state = None
+        self.year = None
+        self.template = None
 
     def patchRedistrictingMenu(self, patch: bool = True):
         if self.redist_plugin:

@@ -502,8 +502,12 @@ def create_layer(db: sqlite3.Connection, df: gpd.GeoDataFrame, dec_year: str, ge
     sql = insert_data_script(geog, dec_year, fields)
     db.executemany(sql, df[fields].to_wkt().itertuples(index=False))
     # df.to_file(gpkg, layer=f"{geographies[g].name}{dec_year[2:]}", driver="GPKG")
+
+    # using gpkg_ogr_contents table can speed up layer access in QGIS/fiona
+    # -- not creating triggers to keep it updated here because these
+    # GeoPackages are expected to be static once built
     db.execute(
-        f"UPDATE gpkg_ogr_contents SET feature_count = (SELECT COUNT(*) FROM {geographies[geog].name}{dec_year[-2:]})"
+        f"UPDATE gpkg_ogr_contents SET feature_count = (SELECT COUNT(*) FROM {geographies[geog].name}{dec_year[-2:]}) WHERE table_name = '{geographies[geog].name}{dec_year[-2:]}'"
     )
 
 
