@@ -126,7 +126,7 @@ def create_plan_template(
 
     for f in fields:
         fld = all_fields[f]
-        builder.appendDataField(f, caption=fld["caption"], sum=fld["sum"], pctbase=fld["pctbase"])
+        builder.appendDataField(f, caption=fld["caption"], sumfield=fld["sum"], pctbase=fld["pctbase"])
 
     return builder.createPlan(parent=QgsProject.instance(), createLayers=False)
 
