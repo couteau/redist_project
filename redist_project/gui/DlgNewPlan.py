@@ -26,11 +26,11 @@ from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QWizard
 )
-from redistricting.core import (
+from redistricting.gui._dlgEditPlanDetailsPage import dlgEditPlanDetailsPage
+from redistricting.models import (
     DataField,
     RedistrictingPlan
 )
-from redistricting.gui._dlgEditPlanDetailsPage import dlgEditPlanDetailsPage
 
 from ..core.fields import all_fields
 from ..core.state import State

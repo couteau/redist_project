@@ -1,6 +1,6 @@
 import ftplib
 
-from redistricting.core.utils import spatialite_connect
+from redistricting.utils import spatialite_connect
 
 
 def cvap_years(year):

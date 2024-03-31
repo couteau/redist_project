@@ -33,7 +33,7 @@ from qgis.core import (
     QgsVectorTileLayer
 )
 from qgis.PyQt.QtCore import QDirIterator
-from redistricting.core import PlanBuilder
+from redistricting.services import PlanBuilder
 
 from ..datapkg.geography import Geography
 from .fields import all_fields
@@ -128,7 +128,7 @@ def create_plan_template(
         fld = all_fields[f]
         builder.appendDataField(f, caption=fld["caption"], sumfield=fld["sum"], pctbase=fld["pctbase"])
 
-    return builder.createPlan(parent=QgsProject.instance(), createLayers=False)
+    return builder.createPlan(createLayers=False, planParent=QgsProject.instance(), )
 
 
 def build_project(

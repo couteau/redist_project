@@ -29,7 +29,7 @@ from qgis.core import (
     QgsFeedback,
     QgsTask
 )
-from redistricting.core.Tasks._debug import debug_thread
+from redistricting.services.Tasks._debug import debug_thread
 
 from .settings import settings
 from .state import geopackage_name

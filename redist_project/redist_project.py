@@ -53,12 +53,10 @@ from qgis.utils import (
     plugins,
     unloadPlugin
 )
-from redistricting.core import (
-    PlanBuilder,
-    RedistrictingPlan
-)
 from redistricting.gui import DlgEditPlan
+from redistricting.models import RedistrictingPlan
 from redistricting.redistricting import Redistricting
+from redistricting.services import PlanBuilder
 
 from .core.buildpkg import BuildGeopackageTask
 from .core.buildproj import build_project
@@ -101,6 +99,9 @@ class RdProjectGenerator:
 
     def initGui(self):
         """Create the menu entries, toolbar buttons, actions, and dock widgets."""
+        if "redistricting" not in plugins:
+            return
+
         self.redist_plugin: Redistricting = plugins["redistricting"]
 
         self.project.readProjectWithContext.connect(self.onReadProject)
@@ -164,6 +165,7 @@ class RdProjectGenerator:
         self.state = None
         self.year = None
         self.template = None
+        self.patchRedistrictingMenu(False)
 
     def patchRedistrictingMenu(self, patch: bool = True):
         if self.redist_plugin:

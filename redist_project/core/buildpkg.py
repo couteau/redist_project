@@ -29,7 +29,7 @@ from qgis.core import (
     QgsFeedback,
     QgsTask
 )
-from redistricting.core.Tasks._debug import debug_thread
+from redistricting.services.Tasks._debug import debug_thread
 
 from ..datapkg.cvap import add_cvap_data_to_gpkg
 from ..datapkg.pl import process_pl

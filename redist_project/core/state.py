@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 from qgis.PyQt.QtCore import QObject
-from redistricting.core.utils import spatialite_connect
+from redistricting.utils import spatialite_connect
 
 from ..datapkg.geography import (
     Geography,
