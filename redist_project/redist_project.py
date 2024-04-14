@@ -28,7 +28,6 @@
 import json
 import logging
 import pathlib
-from copy import deepcopy
 from typing import Optional
 
 from qgis.core import (
@@ -56,7 +55,10 @@ from qgis.utils import (
 from redistricting.gui import DlgEditPlan
 from redistricting.models import RedistrictingPlan
 from redistricting.redistricting import Redistricting
-from redistricting.services import PlanBuilder
+from redistricting.services import (
+    PlanBuilder,
+    PlanEditor
+)
 
 from .core.buildpkg import BuildGeopackageTask
 from .core.buildproj import build_project
@@ -81,6 +83,7 @@ class RdProjectGenerator:
         self.redist_plugin = None
 
         self.newPlanOrig = None
+        self.editPlanOrig = None
         self.newProjectAction = None
         self.newProjectDlg = None
         self.states = {
@@ -170,33 +173,27 @@ class RdProjectGenerator:
     def patchRedistrictingMenu(self, patch: bool = True):
         if self.redist_plugin:
             if patch and self.newPlanOrig is None:
-                self.newPlanOrig = self.redist_plugin.newPlan
-                self.redist_plugin.actionNewPlan.triggered.disconnect(self.redist_plugin.newPlan)
-                self.redist_plugin.actionNewPlan.triggered.connect(self.newPlan)
+                self.newPlanOrig = self.redist_plugin.planController.newPlan
+                self.editPlanOrig = self.redist_plugin.planController.editPlan
+                self.redist_plugin.planController.actionNewPlan.triggered.disconnect(self.newPlanOrig)
+                self.redist_plugin.planController.actionEditPlan.triggered.disconnect(self.editPlanOrig)
+                self.redist_plugin.planController.actionNewPlan.triggered.connect(self.newPlan)
+                self.redist_plugin.planController.actionEditPlan.triggered.connect(self.editPlan)
             elif not patch and self.newPlanOrig is not None:
-                self.redist_plugin.actionNewPlan.triggered.disconnect(self.newPlan)
-                self.redist_plugin.actionNewPlan.triggered.connect(self.redist_plugin.newPlan)
+                self.redist_plugin.planController.actionNewPlan.triggered.disconnect(self.newPlan)
+                self.redist_plugin.planController.actionEditPlan.triggered.disconnect(self.editPlan)
+                self.redist_plugin.planController.actionNewPlan.triggered.connect(self.newPlanOrig)
+                self.redist_plugin.planController.actionEditPlan.triggered.connect(self.editPlanOrig)
                 self.newPlanOrig = None
+                self.editPlanOrig = None
         else:
             unloadPlugin(self.name)
 
     def newPlan(self):
-        # if self.project.isDirty():
-        #     # the project must be saved before a plan can be created
-        #     self.iface.messageBar().pushMessage(
-        #         self.tr("Wait!"),
-        #         self.tr("Please save your project before "
-        #                 "creating a redistricting plan."),
-        #         level=Qgis.MessageLevel.Warning,
-        #         duration=5
-        #     )
-        #     return
-
-        plan = deepcopy(self.template)
-        dlg = NewPlanDialog(self.state, plan, self.iface.mainWindow())
+        dlg = NewPlanDialog(self.state, self.template, self.iface.mainWindow())
         r = dlg.exec_()
         if r == QDialog.Accepted:
-            builder = PlanBuilder.fromPlan(plan)
+            builder = PlanBuilder.fromPlan(self.template)
             builder.setName(dlg.planName) \
                 .setNumDistricts(dlg.numDistricts) \
                 .setNumSeats(dlg.numSeats) \
@@ -204,9 +201,9 @@ class RdProjectGenerator:
                 .setDataFields(dlg.dataFields) \
                 .setGeoPackagePath(dlg.gpkgPath)
 
-            self.redist_plugin.buildPlan(builder)
+            self.redist_plugin.planController.buildPlan(builder)
         elif r == 2:  # advanced button clicked - show default new plan dialog
-            plan = PlanBuilder.fromPlan(plan) \
+            plan = PlanBuilder.fromPlan(self.template) \
                 .setName(dlg.planName) \
                 .setDescription(dlg.description) \
                 .setNumDistricts(dlg.numDistricts) \
@@ -234,7 +231,44 @@ class RdProjectGenerator:
                     .setGeoFields(dlgNewPlan.geoFields()) \
                     .setGeoPackagePath(dlgNewPlan.gpkgPath())
 
-                self.redist_plugin.buildPlan(builder)
+                self.redist_plugin.planController.buildPlan(builder)
+
+    def editPlan(self, plan):
+        dlg = NewPlanDialog(plan, self.iface.mainWindow())
+        dlg.setWindowTitle(self.tr('Edit Redistricting Plan'))
+        r = dlg.exec()
+        if r == QDialog.Accepted:
+            builder = PlanEditor.fromPlan(plan)
+            builder.setName(dlg.planName) \
+                .setNumDistricts(dlg.numDistricts) \
+                .setNumSeats(dlg.numSeats) \
+                .setDescription(dlg.description) \
+                .setDataFields(dlg.dataFields)
+            if builder.updatePlan():
+                self.project.setDirty()
+                if 'num-districts' in builder.modifiedFields:
+                    self.redist_plugin.planStyler.stylePlan(plan)
+        elif r == 2:  # advanced button clicked - show default new plan dialog
+            dlgEditPlan = DlgEditPlan(plan, self.iface.mainWindow())
+            dlgEditPlan.setWindowTitle(self.tr('Edit Redistricting Plan'))
+            if dlgEditPlan.exec() == QDialog.Accepted:
+                builder = PlanEditor.fromPlan(plan) \
+                    .setName(dlgEditPlan.planName()) \
+                    .setNumDistricts(dlgEditPlan.numDistricts()) \
+                    .setNumSeats(dlgEditPlan.numSeats()) \
+                    .setDescription(dlgEditPlan.description()) \
+                    .setDeviation(dlgEditPlan.deviation()) \
+                    .setGeoDisplay(dlgEditPlan.geoIdCaption()) \
+                    .setPopLayer(dlgEditPlan.popLayer()) \
+                    .setPopField(dlgEditPlan.popField()) \
+                    .setPopFields(dlgEditPlan.popFields()) \
+                    .setDataFields(dlgEditPlan.dataFields()) \
+                    .setGeoFields(dlgEditPlan.geoFields())
+
+                if builder.updatePlan():
+                    self.project.setDirty()
+                    if 'num-districts' in builder.modifiedFields:
+                        self.redist_plugin.planStyler.stylePlan(plan)
 
     def newProject(self):
         self.newProjectDlg = NewProjectDialog(self.states, self.iface.mainWindow())
