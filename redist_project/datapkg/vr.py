@@ -131,7 +131,8 @@ def add_vr_to_block(gpkg: pathlib.Path, dec_year: str, vr_file: pathlib.Path, pr
 
 
 def validate_vr(filename, st: str, dec_year):
-    pat = r"([A-Z]{2})_l2_(20[1-3]0)block_agg_(\d{8}).csv"
+    pat = r"([A-Z]{2})_l2_(?:20\d\dstats_)?(20[1-3]0)block(?:_agg_(\d{8}))?.csv"
+
     if not (r := re.search(pat, filename)):
         return ValueError("Invalid voter file name")
 
@@ -141,9 +142,10 @@ def validate_vr(filename, st: str, dec_year):
     if r[2] != dec_year:
         return ValueError("Voter file decennial year does not match GeoPackage")
 
-    try:
-        datetime.strptime(r[3], "%Y%m%d")
-    except ValueError as e:
-        return e
+    if r[3] is not None:
+        try:
+            datetime.strptime(r[3], "%Y%m%d")
+        except (ValueError, TypeError) as e:
+            return e
 
     return True

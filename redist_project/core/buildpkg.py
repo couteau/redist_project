@@ -24,21 +24,25 @@
 """
 import logging
 import pathlib
+from typing import Any
 
 from qgis.core import (
     QgsFeedback,
     QgsTask
 )
+from redistricting.exception import CanceledError
 from redistricting.services.Tasks._debug import debug_thread
 
+from ..datapkg.bef import (
+    BEFData,
+    add_bef_to_block
+)
 from ..datapkg.cvap import add_cvap_data_to_gpkg
 from ..datapkg.pl import process_pl
+from ..datapkg.shp import import_shape
 from ..datapkg.vr import add_vr_to_block
 from .settings import settings
-from .state import (
-    State,
-    geopackage_name
-)
+from .state import State
 from .utils import tr
 
 
@@ -48,13 +52,22 @@ def build_geopackage(
     cvap_year=None,
     geogs=None,
     vr_path: pathlib.Path = None,
+    addl_bef: list[BEFData] = None,
+    addl_shp: dict[str, str] = None,
     feedback: QgsFeedback = None
 ):
     def progress(n):
         if feedback:
+            if feedback.isCanceled():
+                raise CanceledError()
+
             feedback.setProgress(count + n * segment/total)
 
-    gpkg_name = geopackage_name(state)
+    src_path = settings.datapath / "cache"
+    if not src_path.exists():
+        src_path.mkdir(parents=True)
+
+    gpkg_name = state.gpkg
     gpkg_path = settings.datapath / gpkg_name
 
     if geogs is None:
@@ -65,13 +78,37 @@ def build_geopackage(
         total += 45
     if vr_path and vr_path.exists():
         total += 10
+
+    if addl_bef:
+        total += 10 * len(addl_bef)
+
+    if addl_shp:
+        total += 10 * len(addl_shp)
+
     count = 0
     segment = 45
-    process_pl(state.id, dec_year, geogs=geogs, gpkg=gpkg_path, progress=progress)
+    if not process_pl(
+        state.code,
+        dec_year,
+        geogs=geogs,
+        gpkg=gpkg_path,
+        src_path=src_path,
+        progress=progress
+    ) or feedback.isCanceled():
+        return False
+
     count += segment
     if cvap_year:
         segment = 45
-        add_cvap_data_to_gpkg(gpkg_path, state.id, dec_year, cvap_year, prog_cb=progress)
+        if not add_cvap_data_to_gpkg(
+            gpkg_path,
+            state.code,
+            dec_year,
+            cvap_year,
+            src_path=src_path,
+            prog_cb=progress
+        ) or feedback.isCanceled():
+            return False
         count += segment
 
     if vr_path and vr_path.exists():
@@ -79,17 +116,41 @@ def build_geopackage(
         add_vr_to_block(gpkg_path, dec_year, vr_path, progress=progress)
         count += segment
 
+    if addl_bef:
+        segment = 10
+        for bef in addl_bef:
+            add_bef_to_block(gpkg_path, dec_year, bef, progress=progress)
+            count += segment
+
+    if addl_shp:
+        segment = 10
+        for lyr, shp in addl_shp.items():
+            import_shape(gpkg_path, shp, lyr, progress=progress)
+            count += segment
+
     feedback.setProgress(100)
 
 
 class BuildGeopackageTask(QgsTask):
-    def __init__(self, state: State, dec_year="2020", cvap_year=None, geogs=None, vr_path: pathlib.Path = None) -> None:
+    def __init__(
+        self,
+        state: State,
+        dec_year="2020",
+        cvap_year=None,
+        geogs=None,
+        vr_path: pathlib.Path = None,
+        addl_bef: list[dict[str, Any]] = None,
+        addl_shp: dict[str, str] = None
+    ):
         super().__init__(tr("Build redistricting data package for %s") % state.name, QgsTask.AllFlags)
         self.state = state
         self.dec_year = dec_year
         self.acs_year = cvap_year
         self.geogs = geogs
         self.vr_path = vr_path
+        self.addl_bef = addl_bef
+        self.addl_shp = addl_shp
+        self.exception = None
 
     def updateDescription(self, record: logging.LogRecord):
         self.setDescription(record.getMessage())
@@ -99,7 +160,15 @@ class BuildGeopackageTask(QgsTask):
         debug_thread()
         logging.root.setLevel(logging.INFO)
         logging.root.addFilter(self.updateDescription)
-        build_geopackage(self.state, self.dec_year, self.acs_year, self.geogs, self.vr_path, self)
-        logging.root.removeFilter(self.updateDescription)
+        try:
+            build_geopackage(self.state, self.dec_year, self.acs_year, self.geogs,
+                             self.vr_path, self.addl_bef, self.addl_shp, self)
+        except CanceledError:
+            return False
+        except Exception as e:  # pylint: disable=broad-except
+            self.exception = e
+            return False
+        finally:
+            logging.root.removeFilter(self.updateDescription)
 
         return True

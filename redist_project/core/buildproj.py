@@ -118,7 +118,7 @@ def create_plan_template(
         fields = [f for f in fields if all_fields[f]["pctbase"] != "reg_total"]
 
     for geog in geogs:
-        if state.id == "la" and geog.geog == "c":
+        if state.code == "la" and geog.geog == "c":
             caption = tr("Parish")
         else:
             caption = tr(geog.descrip)
@@ -143,7 +143,8 @@ def build_project(
         subdiv_geog: Optional[str] = None,
         subdiv_id: Optional[str] = None,
         fields: Optional[list[str]] = None,
-        base_map: Optional[bool] = False
+        base_map: bool = False,
+        custom_layers: bool = True
 ):
     project = QgsProject.instance()
     crs = QgsCoordinateReferenceSystem("EPSG:4269")
@@ -198,6 +199,12 @@ def build_project(
         if geog.name in styles:
             lyr.loadNamedStyle(f":/plugins/redist_project/style/{geog.name}.qml")
 
+    if custom_layers:
+        for lyrname in state.get_customshapes():
+            lyr: QgsVectorLayer = QgsVectorLayer(f"{state.gpkg}|layername={lyrname}", lyrname, "ogr")
+            project.addMapLayer(lyr)
+            layers.append(lyr)
+
     if subdiv_geog is not None:
         project.addMapLayer(subdiv_layer)
         layers.append(subdiv_layer)
@@ -225,7 +232,7 @@ def build_project(
 
     s = json.dumps(plan.serialize())
 
-    project.writeEntry('redistricting', 'us-state', state.id)
+    project.writeEntry('redistricting', 'us-state', state.code)
     project.writeEntry('redistricting', 'us-decennial', state.year)
     project.writeEntry("redistricting", "us-template", s)
 

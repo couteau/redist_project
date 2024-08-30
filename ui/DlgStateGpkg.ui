@@ -6,14 +6,37 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>452</width>
-    <height>285</height>
+    <width>476</width>
+    <height>294</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Redistricting Data Package</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="4" column="0">
+    <widget class="QCheckBox" name="cbIncludeCVAP">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;QGIS Redistricting Plugin can include Citizen Voting Age Population data from the US Census Bureau in the redistricting data package. Please select the 5-Year ACS year for the CVAP data you would like to include.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="text">
+      <string>Include CVAP data</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="2">
+    <widget class="QRadioButton" name="rbStandardPackage">
+     <property name="text">
+      <string>Download redistricting data package for {state}</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
    <item row="4" column="1">
     <widget class="QComboBox" name="cmCVAPYear">
      <property name="enabled">
@@ -21,21 +44,7 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="0">
-    <widget class="QCheckBox" name="cbIncludeVoterReg">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="toolTip">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;QGIS Redistricting Plugin can add voter registration data in the redistricting data package. To include voter registration data,  you must obtain a L2 block-level voter registration package provided by Redistricting Data Hub. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-     </property>
-     <property name="text">
-      <string>Include L2 Voter Registration 
-Data from RDH</string>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="0" colspan="2">
+   <item row="9" column="0" colspan="2">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -44,29 +53,6 @@ Data from RDH</string>
       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
-   </item>
-   <item row="0" column="0" colspan="2">
-    <widget class="QLabel" name="lbIntro">
-     <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To create a redistricting plan for {state}, you must install a redistricting data package. Prepackaged redistricting data is available for download or you may create a custom package.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="0" colspan="2">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
    </item>
    <item row="5" column="1">
     <widget class="QgsFileWidget" name="fwL2VRData">
@@ -84,43 +70,17 @@ Data from RDH</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="0" colspan="2">
-    <widget class="QRadioButton" name="rbStandardPackage">
-     <property name="text">
-      <string>Download redistricting data package for {state}</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
-    <widget class="QCheckBox" name="cbIncludeCVAP">
+   <item row="5" column="0">
+    <widget class="QCheckBox" name="cbIncludeVoterReg">
      <property name="enabled">
       <bool>false</bool>
      </property>
      <property name="toolTip">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;QGIS Redistricting Plugin can include Citizen Voting Age Population data from the US Census Bureau in the redistricting data package. Please select the 5-Year ACS year for the CVAP data you would like to include.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;QGIS Redistricting Plugin can add voter registration data in the redistricting data package. To include voter registration data,  you must obtain a L2 block-level voter registration package provided by Redistricting Data Hub. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
      <property name="text">
-      <string>Include CVAP data</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0" colspan="2">
-    <widget class="QRadioButton" name="rbCustomPackage">
-     <property name="text">
-      <string>Create a custom redistricting data package for {state}</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lbDecennialYear">
-     <property name="text">
-      <string>Decennial Census</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmDecennialYear</cstring>
+      <string>Include L2 Voter Registration 
+Data from RDH</string>
      </property>
     </widget>
    </item>
@@ -140,6 +100,46 @@ Data from RDH</string>
       </property>
      </item>
     </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lbDecennialYear">
+     <property name="text">
+      <string>Decennial Census</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmDecennialYear</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0" colspan="2">
+    <widget class="QLabel" name="lbIntro">
+     <property name="text">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To create a redistricting plan for {state}, you must install a redistricting data package. Prepackaged redistricting data is available for download or you may create a custom package.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="2">
+    <widget class="QRadioButton" name="rbCustomPackage">
+     <property name="text">
+      <string>Create a custom redistricting data package for {state}</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0" colspan="2">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>

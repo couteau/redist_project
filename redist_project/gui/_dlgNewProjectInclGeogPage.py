@@ -49,6 +49,8 @@ class DlgNewProjectIncludeGeographyPage(Ui_wzpIncludeGeography, QWizardPage):
         for w in self.geogWidgets:
             w.setEnabled(w.objectName().lower()[2:] in geogs)
 
+        self.cbCustomLayers.setEnabled(len(state.get_customshapes()) > 0)
+
     def cleanupPage(self):
         ...
 

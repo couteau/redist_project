@@ -23,15 +23,21 @@
  ***************************************************************************/
 """
 from qgis.PyQt.QtCore import (
-    pyqtProperty,
+    QModelIndex,
     pyqtSignal
 )
-from qgis.PyQt.QtWidgets import QWizardPage
+from qgis.PyQt.QtWidgets import (
+    QDialog,
+    QWizardPage
+)
 
+from ..core.getpkg import build_gpkg
+from ..core.settings import settings
 from ..core.state import (
     State,
     StateList
 )
+from .DlgStateGpkg import AcquireStateGpkgDialog
 from .models import (
     GeographyListModel,
     StateListModel,
@@ -43,7 +49,7 @@ from .ui.WzpGeography import Ui_wzpGeography
 class DlgNewProjectGeographyPage(Ui_wzpGeography, QWizardPage):
     stateChanged = pyqtSignal(State, name="stateChanged")
 
-    def __init__(self, states: StateList, parent=None):
+    def __init__(self, states: dict[str, StateList], parent=None):
         super().__init__(parent)
         self.setupUi(self)
 
@@ -76,8 +82,9 @@ class DlgNewProjectGeographyPage(Ui_wzpGeography, QWizardPage):
         self.cmbSubdivisionName.currentIndexChanged.connect(
             self.cmbSubdivisionNameIndexChanged
         )
+        self.btnCustomGpkg.clicked.connect(self.createCustomPackage)
 
-    @pyqtProperty(State, notify=stateChanged)
+    @property
     def state(self) -> State:
         return self._state
 
@@ -103,6 +110,7 @@ class DlgNewProjectGeographyPage(Ui_wzpGeography, QWizardPage):
             self.state = None
             self.selected_geog = None
             self.selected_subdiv = None
+            self.btnCustomGpkg.setEnabled(False)
         else:
             self.state = self.states[self.year][index]
 
@@ -117,6 +125,7 @@ class DlgNewProjectGeographyPage(Ui_wzpGeography, QWizardPage):
             self.subdiv_model.geog = None
             self.cmbSubdivisionName.setCurrentIndex(-1)
             self.selected_subdiv = None
+            self.btnCustomGpkg.setEnabled(True)
 
     def cmbSubdivisionGeographyIndexChanged(self, index: int):
         if index == -1:
@@ -125,7 +134,7 @@ class DlgNewProjectGeographyPage(Ui_wzpGeography, QWizardPage):
             self.selected_subdiv = None
         else:
             self.selected_geog = self.geog_model.geographies[index]
-            self.subdiv_model.geog = self.selected_geog
+            self.subdiv_model.geog = self.selected_geog.geog
             self.cmbSubdivisionName.setCurrentIndex(-1)
             self.selected_subdiv = None
 
@@ -143,3 +152,36 @@ class DlgNewProjectGeographyPage(Ui_wzpGeography, QWizardPage):
             return self.selected_geog is not None and self.selected_subdiv is not None
 
         return True
+
+    def createCustomPackage(self):
+        def addCustomPackage():
+            self.state = state
+
+            self.states[state.year].add_custom_package(state)
+            index = self.states[state.year].index(state)
+            self.state_model.beginInsertRows(QModelIndex(), index, index)
+            self.state_model.endInsertRows()
+            self.cmbState.setCurrentIndex(index)
+            settings.addCustomPackage(
+                state.st.state,
+                state.id,
+                state.year,
+                state.custom_name,
+                str(state.gpkg)
+            )
+
+        state = State.fromState(self.state)
+        dlg = AcquireStateGpkgDialog(state, True, parent=self.wizard())
+        if dlg.exec() == QDialog.Accepted:
+            state.custom_name = dlg.edPackageName.text()
+
+            build_gpkg(
+                state,
+                dlg.cmDecennialYear.currentText(),
+                dlg.cmCVAPYear.currentText(),
+                dlg.fwL2VRData.filePath(),
+                dlg.addlEquivalencies,
+                dlg.addlShapefiles,
+                addCustomPackage,
+                self.wizard()
+            )

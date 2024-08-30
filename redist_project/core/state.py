@@ -22,7 +22,10 @@
  *                                                                         *
  ***************************************************************************/
 """
+import pathlib
+import random
 from dataclasses import dataclass
+from typing import Optional
 
 import pandas as pd
 from qgis.PyQt.QtCore import QObject
@@ -42,13 +45,23 @@ geog_order = [
 
 
 class State(QObject):
-    def __init__(self, st: CensusState, year: str, gpkg_path=None):
+    def __init__(self, st: CensusState, year: str, gpkg_path=None, custom_id: Optional[str] = None, custom_name=""):
         super().__init__(None)
         self.st = st
         self.year = year
+        if custom_id is not None and not custom_name:
+            raise ValueError("Custom name must be provided for custom state packages")
+        self.custom_id = custom_id
+        self.custom_name = custom_name
         if gpkg_path is None:
-            gpkg_path = settings.datapath / geopackage_name(self)
-        self.gpkg = gpkg_path
+            self.gpkg = settings.datapath / geopackage_name(self)
+        else:
+            self.gpkg = gpkg_path
+
+    @classmethod
+    def fromState(cls, state: 'State') -> 'State':
+        custom_id = f"{random.randint(0, 0xffffff):06x}"
+        return cls(state.st, state.year, custom_id=custom_id, custom_name=custom_id)
 
     def get_geographies(self) -> dict[str, Geography]:
         if not self.gpkg_exists():
@@ -56,7 +69,7 @@ class State(QObject):
 
         with spatialite_connect(self.gpkg) as db:
             c = db.execute(
-                f"select name from sqlite_master where type='table' and name like '%{self.year[:-2]}'")
+                f"select table_name from gpkg_contents where data_type = 'features' and table_name like '%{self.year[:-2]}'")
             geogs = [r[0][:-2] for r in c]
 
         return {g.geog: g for g in geographies.values() if g.name in geogs}
@@ -70,6 +83,13 @@ class State(QObject):
             c = db.execute(f"select geoid, name from {table}")
 
             return [Subdivision(state=self, geog=geographies[geog], geoid=g[0], name=g[1]) for g in c]
+
+    def get_customshapes(self):
+        with spatialite_connect(self.gpkg) as db:
+            c = db.execute(
+                f"select table_name from gpkg_contents where data_type = 'features' and table_name not like '%{self.year[:-2]}'"
+            )
+            return [r[0] for r in c]
 
     def gpkg_exists(self):
         return self.gpkg and self.gpkg.exists()
@@ -94,11 +114,19 @@ class State(QObject):
 
     @property
     def id(self):
+        return self.code if self.custom_id is None else f"{self.code}@{self.custom_id}"
+
+    @property
+    def code(self):
         return self.st.state
 
     @property
     def name(self):
         return self.st.name
+
+    @property
+    def packageName(self):
+        return self.name if self.custom_id is None else self.custom_name
 
     @property
     def fips(self):
@@ -118,6 +146,20 @@ class StateList:
         else:
             self.states = {
                 s: State(census_states[s], dec_year) for s in states}
+
+        self.custom_pkgs = {}
+        for s in settings.customPackages:
+            st = State(
+                census_states[s["st"]],
+                year=s["dec_year"],
+                gpkg_path=pathlib.Path(s["gpkg_path"]),
+                custom_id=s["id"],
+                custom_name=s["name"]
+            )
+            self.custom_pkgs[st.code] = st
+
+        if self.custom_pkgs:
+            self.sort_states()
 
     def __getitem__(self, __index) -> State:
         if isinstance(__index, str):
@@ -154,11 +196,26 @@ class StateList:
     def __iter__(self):
         return (s for s in self.states.values())
 
+    def index(self, state: State) -> int:
+        return list(self.states.keys()).index(state.id)
+
     def row_count(self):
         return len(self.states)
 
     def col_count(self):
         return len([key for key, value in State.__dict__.items() if isinstance(value, property)])
+
+    def sort_states(self):
+        keys = {*self.states.keys(), *self.custom_pkgs.keys()}
+        states = dict.fromkeys(sorted(keys))
+        states.update(self.states)
+        states.update(self.custom_pkgs)
+        self.states = states
+
+    def add_custom_package(self, state: State):
+        self.custom_pkgs[state.id] = state
+        self.sort_states()
+        return state
 
 
 @dataclass
@@ -170,4 +227,4 @@ class Subdivision:
 
 
 def geopackage_name(state: State):
-    return f"{state.name.replace(' ', '_').lower()}.gpkg"
+    return f"{state.packageName.replace(' ', '_').lower()}.gpkg"

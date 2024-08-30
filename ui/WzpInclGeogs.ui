@@ -98,6 +98,13 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
+       <widget class="QCheckBox" name="cbCustomLayers">
+        <property name="text">
+         <string>Include Custom Layers</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="cbBaseMap">
         <property name="text">
          <string>Include Qwant base-map</string>

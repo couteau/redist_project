@@ -22,12 +22,14 @@
  *                                                                         *
  ***************************************************************************/
 """
+import datetime
 import logging
 import pathlib
-import re
 import sqlite3
 import zipfile
 from collections.abc import Callable
+from email.message import Message
+from email.utils import parsedate_to_datetime
 from tempfile import mkdtemp
 
 import numpy as np
@@ -116,36 +118,63 @@ mr_subtract = ["{pop}_nh_black_aiakn", "{pop}_nh_aiakn_white",
                "{pop}_nh_black_white", "{pop}_nh_asian_white"]
 
 
-def download_cvap(year, dest_path: pathlib.Path, progress: Callable[[float], None] = None):
-    cvap_url = f'https://www2.census.gov/programs-surveys/decennial/rdo/datasets/{year}/{year}-cvap/CVAP_{int(year)-4}-{year}_ACS_csv_files.zip'
-    r = requests.get(cvap_url, allow_redirects=True, timeout=60, stream=True)
-    if not r.ok:
-        return None
+def check_cache(cvap_url: str, cache_path: pathlib.Path):
+    r = requests.head(cvap_url, allow_redirects=True, timeout=60)
+    if r.ok:
+        msg = Message()
+        msg['content-disposition'] = r.headers.get('content-disposition')
+        fname = msg.get_filename()
 
-    cd = r.headers.get('content-disposition')
-    if cd:
-        fname = re.findall('filename=(.+)', cd)
-    else:
-        fname = cvap_url.rsplit('/', 1)[1]
-    file_path: pathlib.Path = dest_path / fname
+        if not fname:
+            fname = cvap_url.rsplit('/', 1)[1]
 
-    total = int(r.headers.get("content-length", 0))
-    count = 0
-    block_size = 4096
-    with file_path.open("wb+") as file:
-        for data in r.iter_content(block_size):
-            if total:
-                count += len(data)
-            else:
-                count += 1
-            if progress:
-                progress(min(100, 100 * count / total) if total else min(count, 100))
-            file.write(data)
+        file_path: pathlib.Path = cache_path / fname
+        if file_path.exists():
+            if "last-modified" in r.headers:
+                mod_date = parsedate_to_datetime(r.headers["last-modified"])
+                if mod_date <= datetime.datetime.fromtimestamp(file_path.stat().st_ctime, tz=datetime.UTC):
+                    return True, file_path
+
+            file_path.unlink()
+
+    return False, file_path
+
+
+def download_cvap(cvap_url, file_path: pathlib.Path, progress: Callable[[float], None] = None):
+    retries = 3
+    while retries > 0:
+        try:
+            r = requests.get(cvap_url, allow_redirects=True, timeout=60, stream=True)
+            if not r.ok:
+                if r.status_code == 404:
+                    return None
+                else:
+                    raise r.raise_for_status()
+
+            total = int(r.headers.get("content-length", 0))
+            count = 0
+            block_size = 4096
+            with file_path.open("wb+") as file:
+                for data in r.iter_content(block_size):
+                    if total:
+                        count += len(data)
+                    else:
+                        count += 1
+                    if progress:
+                        progress(min(100, 100 * count / total) if total else min(count, 100))
+                    file.write(data)
+        except TimeoutError:
+            retries -= 1
+            if retries == 0:
+                raise
+            continue
+
+        break
 
     with zipfile.ZipFile(file_path, "r") as z:
-        z.extractall(dest_path)
+        z.extractall(file_path.parent)
 
-    return dest_path
+    return file_path.parent
 
 
 def load_cvap(st_fips, path: pathlib.Path):
@@ -323,18 +352,24 @@ def add_cvap_data_to_gpkg(
 
     if src_path is None:
         src_path = pathlib.Path(mkdtemp())
+
+    cvap_url = 'https://www2.census.gov/programs-surveys/decennial/rdo/datasets/' \
+        f'{cvap_year}/{cvap_year}-cvap/CVAP_{int(cvap_year)-4}-{cvap_year}_ACS_csv_files.zip'
+    cached, file_path = check_cache(cvap_url, src_path)
+    if not cached:
         logging.info("Downloading %s CVAP data for %s", cvap_year, states[state].name)
-        download_cvap(cvap_year, src_path, dl_prog)
+        if not download_cvap(cvap_url, file_path, dl_prog):
+            return False
         total = 100
         count = 15
     else:
+        logging.info("Using cached %s CVAP data for %s", cvap_year, states[state].name)
         total = 85
         count = 0
 
     geog_cvap = None
     block_cvap = None
 
-    db: sqlite3.Connection
     with spatialite_connect(gpkg_name) as db:
         # first do blocks from blockgroups
         if not check_cvap_cols_exist(db, "b", dec_year):
@@ -350,8 +385,6 @@ def add_cvap_data_to_gpkg(
                 regex="pct_").columns, inplace=True)
         else:
             logging.info("CVAP data already present in census block table")
-
-        # progress(20)
 
         # then do other geographies
         inc = (total - count) // \
@@ -383,3 +416,5 @@ def add_cvap_data_to_gpkg(
             logging.info("Adding CVAP columns to %s for %s", geog.name, states[state].name)
             add_cvap_data_to_geog(db, g, dec_year, geog_cvap)
             progress(inc)
+
+    return True

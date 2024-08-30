@@ -22,13 +22,13 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import (
-    pyqtProperty,
-    pyqtSignal
-)
+from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtWidgets import QWizard
 
-from ..core.state import State
+from ..core.state import (
+    State,
+    StateList
+)
 from ..datapkg.geography import geographies
 from ._dlgNewProjectFieldsPage import DlgNewProjectFieldsPage
 from ._dlgNewProjectGeographyPage import DlgNewProjectGeographyPage
@@ -39,7 +39,7 @@ from ._dlgNewProjectPlanPage import DlgNewProjectPlanPage
 class NewProjectDialog(QWizard):
     stateChanged = pyqtSignal(State, name="stateChanged")
 
-    @pyqtProperty(State, notify=stateChanged)
+    @property
     def state(self) -> State:
         return self.geog_page.state
 
@@ -47,7 +47,7 @@ class NewProjectDialog(QWizard):
     def state(self, value: State):
         self.geog_page.state = value
 
-    def __init__(self, states, parent=None):
+    def __init__(self, states: dict[str, StateList], parent=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr('New Redistricting Project'))
         self.wizardStyle = QWizard.ModernStyle
@@ -60,6 +60,7 @@ class NewProjectDialog(QWizard):
 
         self.geog_page = DlgNewProjectGeographyPage(states, self)
         self.geog_page.stateChanged.connect(self.stateChanged)
+
         self.addPage(self.geog_page)
 
         self.incl_geog_page = DlgNewProjectIncludeGeographyPage(self)
@@ -84,7 +85,6 @@ class NewProjectDialog(QWizard):
 
     @property
     def geographies(self):
-
         return {"b": geographies["b"]} | {
             g: geog
             for g, geog in self.state.get_geographies().items()  # pylint: disable=no-member
@@ -122,3 +122,7 @@ class NewProjectDialog(QWizard):
     @property
     def baseMap(self):
         return self.incl_geog_page.cbBaseMap.isChecked()
+
+    @property
+    def customLayers(self) -> bool:
+        return self.incl_geog_page.cbCustomLayers.isChecked()

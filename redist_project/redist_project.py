@@ -25,51 +25,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-import json
-import logging
-import pathlib
-from typing import Optional
-
-from qgis.core import (
-    QgsApplication,
-    QgsProject,
-    QgsReadWriteContext
-)
+from qgis.core import QgsProject
 from qgis.gui import QgisInterface
-from qgis.PyQt.QtCore import (
-    QCoreApplication,
-    Qt
-)
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import (
-    QAction,
-    QDialog,
-    QProgressDialog,
-    QWidget
-)
-from qgis.PyQt.QtXml import QDomDocument
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.utils import (
     plugins,
     unloadPlugin
 )
-from redistricting.gui import DlgEditPlan
-from redistricting.models import RedistrictingPlan
-from redistricting.redistricting import Redistricting
-from redistricting.services import (
-    PlanBuilder,
-    PlanEditor
-)
 
-from .core.buildpkg import BuildGeopackageTask
-from .core.buildproj import build_project
-from .core.download import StateDownloadTask
-from .core.state import (
-    State,
-    StateList
-)
-from .gui.DlgNewPlan import NewPlanDialog
-from .gui.DlgNewProject import NewProjectDialog
-from .gui.DlgStateGpkg import DlgStateGpkg
+from .actions import RedistProjectActions
+from .controller.ProjectCtlr import ProjectController
 from .resources import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 
@@ -80,20 +45,13 @@ class RdProjectGenerator:
         self.name = self.__class__.__name__
         self.iface = iface
         self.project = QgsProject.instance()
+        self.actions = RedistProjectActions(self.iface.mainWindow())
+        self.projectController = ProjectController(self.iface, self.iface.mainWindow())
         self.redist_plugin = None
 
         self.newPlanOrig = None
         self.editPlanOrig = None
-        self.newProjectAction = None
         self.newProjectDlg = None
-        self.states = {
-            "2010": StateList("2010"),
-            "2020": StateList("2020")
-        }
-
-        self.state = None
-        self.year = None
-        self.template = None
 
     @staticmethod
     def tr(message):
@@ -103,269 +61,23 @@ class RdProjectGenerator:
     def initGui(self):
         """Create the menu entries, toolbar buttons, actions, and dock widgets."""
         if "redistricting" not in plugins:
+            unloadPlugin(self.name)
             return
 
-        self.redist_plugin: Redistricting = plugins["redistricting"]
-
-        self.project.readProjectWithContext.connect(self.onReadProject)
-        self.project.cleared.connect(self.onCloseProject)
-
-        self.newProjectAction = QAction(
-            self.iface.mainWindow()
-        )
-        self.newProjectAction.setIcon(
-            QIcon(':/plugins/redist_project/newproj.svg')
-        )
-        self.newProjectAction.setText(self.tr("New Districting Project"))
-        self.newProjectAction.setToolTip(
-            self.tr("Create a new redistricting project")
-        )
-        self.newProjectAction.triggered.connect(self.newProject)
+        self.projectController.load()
 
         menu = self.iface.projectMenu()
-        menu.insertAction(menu.actions()[1], self.newProjectAction)
+        menu.insertAction(menu.actions()[1], self.projectController.newProjectAction)
 
         toolbar = self.iface.fileToolBar()
-        toolbar.insertAction(toolbar.actions()[1], self.newProjectAction)
+        toolbar.insertAction(toolbar.actions()[1], self.projectController.newProjectAction)
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         toolbar = self.iface.fileToolBar()
-        toolbar.removeAction(self.newProjectAction)
+        toolbar.removeAction(self.projectController.newProjectAction)
 
         menu = self.iface.projectMenu()
-        menu.removeAction(self.newProjectAction)
+        menu.removeAction(self.projectController.newProjectAction)
 
-        self.project.readProjectWithContext.disconnect(self.onReadProject)
-
-    def readProjectParams(self):
-        state, success = self.project.readEntry('redistricting', 'us-state', None)
-        if success and state:
-            year, success = self.project.readEntry('redistricting', 'us-decennial', None)
-            if success and year:
-                s, success = self.project.readEntry('redistricting', 'us-template')
-            else:
-                success = False
-
-            if success and s:
-                self.state = self.states[year][state]
-                self.year = year
-                self.template = RedistrictingPlan.deserialize(json.loads(s), self.project)
-            else:
-                success = False
-        else:
-            success = False
-
-        if success:
-            self.patchRedistrictingMenu(True)
-        else:
-            self.patchRedistrictingMenu(False)
-
-    def onReadProject(self, doc: QDomDocument, context: QgsReadWriteContext):  # pylint: disable=unused-argument
-        self.readProjectParams()
-
-    def onCloseProject(self):
-        self.state = None
-        self.year = None
-        self.template = None
-        self.patchRedistrictingMenu(False)
-
-    def patchRedistrictingMenu(self, patch: bool = True):
-        if self.redist_plugin:
-            if patch and self.newPlanOrig is None:
-                self.newPlanOrig = self.redist_plugin.planController.newPlan
-                self.editPlanOrig = self.redist_plugin.planController.editPlan
-                self.redist_plugin.planController.actionNewPlan.triggered.disconnect(self.newPlanOrig)
-                self.redist_plugin.planController.actionEditPlan.triggered.disconnect(self.editPlanOrig)
-                self.redist_plugin.planController.actionNewPlan.triggered.connect(self.newPlan)
-                self.redist_plugin.planController.actionEditPlan.triggered.connect(self.editPlan)
-            elif not patch and self.newPlanOrig is not None:
-                self.redist_plugin.planController.actionNewPlan.triggered.disconnect(self.newPlan)
-                self.redist_plugin.planController.actionEditPlan.triggered.disconnect(self.editPlan)
-                self.redist_plugin.planController.actionNewPlan.triggered.connect(self.newPlanOrig)
-                self.redist_plugin.planController.actionEditPlan.triggered.connect(self.editPlanOrig)
-                self.newPlanOrig = None
-                self.editPlanOrig = None
-        else:
-            unloadPlugin(self.name)
-
-    def newPlan(self):
-        dlg = NewPlanDialog(self.state, self.template, self.iface.mainWindow())
-        r = dlg.exec_()
-        if r == QDialog.Accepted:
-            builder = PlanBuilder.fromPlan(self.template)
-            builder.setName(dlg.planName) \
-                .setNumDistricts(dlg.numDistricts) \
-                .setNumSeats(dlg.numSeats) \
-                .setDescription(dlg.description) \
-                .setDataFields(dlg.dataFields) \
-                .setGeoPackagePath(dlg.gpkgPath)
-
-            self.redist_plugin.planController.buildPlan(builder)
-        elif r == 2:  # advanced button clicked - show default new plan dialog
-            plan = PlanBuilder.fromPlan(self.template) \
-                .setName(dlg.planName) \
-                .setDescription(dlg.description) \
-                .setNumDistricts(dlg.numDistricts) \
-                .setNumSeats(dlg.numSeats) \
-                .setDataFields(dlg.dataFields) \
-                .setGeoPackagePath(dlg.gpkgPath) \
-                .createPlan(self.project, False)
-            dlgNewPlan = DlgEditPlan(plan, self.iface.mainWindow())
-            dlgNewPlan.setWindowTitle(self.tr('New Redistricting Plan'))
-            if dlgNewPlan.exec_() == QDialog.Accepted:
-                builder = PlanBuilder() \
-                    .setName(dlgNewPlan.planName()) \
-                    .setNumDistricts(dlgNewPlan.numDistricts()) \
-                    .setNumSeats(dlgNewPlan.numSeats()) \
-                    .setDescription(dlgNewPlan.description()) \
-                    .setDeviation(dlgNewPlan.deviation()) \
-                    .setGeoIdField(dlgNewPlan.geoIdField()) \
-                    .setGeoDisplay(dlgNewPlan.geoIdCaption()) \
-                    .setGeoLayer(dlgNewPlan.geoLayer()) \
-                    .setPopLayer(dlgNewPlan.popLayer()) \
-                    .setJoinField(dlgNewPlan.joinField()) \
-                    .setPopField(dlgNewPlan.popField()) \
-                    .setPopFields(dlgNewPlan.popFields()) \
-                    .setDataFields(dlgNewPlan.dataFields()) \
-                    .setGeoFields(dlgNewPlan.geoFields()) \
-                    .setGeoPackagePath(dlgNewPlan.gpkgPath())
-
-                self.redist_plugin.planController.buildPlan(builder)
-
-    def editPlan(self, plan):
-        dlg = NewPlanDialog(plan, self.iface.mainWindow())
-        dlg.setWindowTitle(self.tr('Edit Redistricting Plan'))
-        r = dlg.exec()
-        if r == QDialog.Accepted:
-            builder = PlanEditor.fromPlan(plan)
-            builder.setName(dlg.planName) \
-                .setNumDistricts(dlg.numDistricts) \
-                .setNumSeats(dlg.numSeats) \
-                .setDescription(dlg.description) \
-                .setDataFields(dlg.dataFields)
-            if builder.updatePlan():
-                self.project.setDirty()
-                if 'num-districts' in builder.modifiedFields:
-                    self.redist_plugin.planStyler.stylePlan(plan)
-        elif r == 2:  # advanced button clicked - show default new plan dialog
-            dlgEditPlan = DlgEditPlan(plan, self.iface.mainWindow())
-            dlgEditPlan.setWindowTitle(self.tr('Edit Redistricting Plan'))
-            if dlgEditPlan.exec() == QDialog.Accepted:
-                builder = PlanEditor.fromPlan(plan) \
-                    .setName(dlgEditPlan.planName()) \
-                    .setNumDistricts(dlgEditPlan.numDistricts()) \
-                    .setNumSeats(dlgEditPlan.numSeats()) \
-                    .setDescription(dlgEditPlan.description()) \
-                    .setDeviation(dlgEditPlan.deviation()) \
-                    .setGeoDisplay(dlgEditPlan.geoIdCaption()) \
-                    .setPopLayer(dlgEditPlan.popLayer()) \
-                    .setPopField(dlgEditPlan.popField()) \
-                    .setPopFields(dlgEditPlan.popFields()) \
-                    .setDataFields(dlgEditPlan.dataFields()) \
-                    .setGeoFields(dlgEditPlan.geoFields())
-
-                if builder.updatePlan():
-                    self.project.setDirty()
-                    if 'num-districts' in builder.modifiedFields:
-                        self.redist_plugin.planStyler.stylePlan(plan)
-
-    def newProject(self):
-        self.newProjectDlg = NewProjectDialog(self.states, self.iface.mainWindow())
-        self.newProjectDlg.stateChanged.connect(self.stateChanged)
-        if self.newProjectDlg.exec_() == QDialog.Accepted:
-            if self.iface.newProject(True):
-                build_project(
-                    self.newProjectDlg.state,
-                    numdistricts=self.newProjectDlg.numDistricts,
-                    numseats=self.newProjectDlg.numSeats,
-                    deviation=self.newProjectDlg.deviation,
-                    include_vap=self.newProjectDlg.includeVAP,
-                    include_cvap=self.newProjectDlg.includeCVAP,
-                    include_vr=self.newProjectDlg.includeVR,
-                    geogs=self.newProjectDlg.geographies,
-                    subdiv_geog=self.newProjectDlg.subdivision_geog,
-                    subdiv_id=self.newProjectDlg.subdivision_geoid,
-                    fields=self.newProjectDlg.dataFields,
-                    base_map=self.newProjectDlg.baseMap
-                )
-                self.readProjectParams()
-
-        self.newProjectDlg = None
-
-    def showPackageDlg(self, state: State):
-        dlg = DlgStateGpkg(state, self.iface.mainWindow())
-        if dlg.exec_() == QDialog.Accepted:
-            if dlg.rbStandardPackage.isChecked():
-                self.download_gpkg(state, self.newProjectDlg)
-            else:
-                self.build_gpkg(
-                    state,
-                    dlg.cmDecennialYear.currentText(),
-                    dlg.cmCVAPYear.currentText(),
-                    dlg.fwL2VRData.filePath(),
-                    self.newProjectDlg
-                )
-            return True
-
-        return False
-
-    def download_gpkg(self, state: State, parent: QWidget = None):
-        msg = self.tr("Downloading redistricting data for %s") % state.name
-        if parent is None:
-            parent = self.iface.mainWindow()
-
-        dlg = QProgressDialog(
-            msg, self.tr('Cancel'),
-            0, 100,
-            self.iface.mainWindow(),
-            Qt.WindowStaysOnTopHint
-        )
-        dlg.setAttribute(Qt.WA_DeleteOnClose, True)
-        if parent != self.iface.mainWindow():
-            dlg.setWindowModality(Qt.WindowModal)
-
-        task = StateDownloadTask(self)
-        dlg.canceled.connect(task.cancel)
-        task.progressChanged.connect(lambda p: dlg.setValue(round(p)))
-        task.taskTerminated.connect(dlg.close)
-        task.taskCompleted.connect(dlg.close)
-        QgsApplication.taskManager().addTask(task)
-
-    def build_gpkg(self, state: State, dec_year, cvap_year, vr_path, parent: QWidget = None):
-        def update_progress(p):
-            dlg.setValue(round(p))
-            text = task.description()
-            if len(text) > 49:
-                text = text[:23] + "..." + text[-23:]
-            dlg.setLabelText(text)
-        msg = self.tr("Building redistricting data package for %s") % state.name
-        if parent is None:
-            parent = self.iface.mainWindow()
-
-        dlg = QProgressDialog(
-            msg, self.tr('Cancel'),
-            0, 100,
-            parent,
-            Qt.Dialog | Qt.WindowStaysOnTopHint
-        )
-        dlg.setWindowTitle(self.tr("Build Redistricting Package"))
-        dlg.setAttribute(Qt.WA_DeleteOnClose, True)
-        if parent != self.iface.mainWindow():
-            dlg.setWindowModality(Qt.WindowModal)
-
-        task = BuildGeopackageTask(state, dec_year, cvap_year, None, pathlib.Path(vr_path))
-        dlg.canceled.connect(task.cancel)
-
-        task.progressChanged.connect(update_progress)
-        task.taskTerminated.connect(dlg.close)
-        task.taskCompleted.connect(dlg.close)
-        logging.root.setLevel(logging.INFO)
-        QgsApplication.taskManager().addTask(task)
-
-    def stateChanged(self, state: Optional[State]):
-        if state is None:
-            return
-
-        if not state.gpkg_exists():
-            self.showPackageDlg(state)
+        self.projectController.unload()

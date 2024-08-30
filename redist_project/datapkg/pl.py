@@ -21,13 +21,14 @@
  *                                                                         *
  ***************************************************************************/
 """
-import ftplib
+import datetime
 import logging
 import pathlib
 import re
 import sqlite3
 import zipfile
 from collections.abc import Callable
+from email.utils import parsedate_to_datetime
 from tempfile import mkdtemp
 from typing import Union
 
@@ -42,7 +43,6 @@ try:
     use_pyogrio = True
 except ImportError:
     use_pyogrio = False
-
 
 from .geography import geographies
 from .population import pop_fields
@@ -133,63 +133,67 @@ def download(
     block_size = 4096
     with dest_path.open('wb+') as file:
         for data in r.iter_content(block_size):
-            if progress:
-                progress(len(data))
             file.write(data)
 
     if dest_path.suffix == '.zip' and extract_to:
         with zipfile.ZipFile(dest_path, "r") as z:
             z.extractall(extract_to)
 
+    progress(1)
+
     return True
 
 
-def download_decennial(st: str, dec_year: str = "2020", dest_path: pathlib.Path = None, progress: Callable[[float], None] = None):
+def download_decennial(st: str, dec_year: str, dest_path: pathlib.Path, progress: Callable[[float], None] = None):
     def prog(b):
         if progress:
             nonlocal count
-            if total != 0:
-                count += b
-                progress(100 * count/total)
-            else:
-                progress(100 * count/len(urldict))
+            count += b
+            progress(100 * count/len(urldict))
 
-    def check_file(url):
-        path = url.removeprefix("https://www2.census.gov")
-        if ftp.nlst(path):
-            nonlocal total
-            total += ftp.size(path)
-            fname = url.rsplit('/', 1)[1]
-            urldict[url] = dest_path / fname
-        else:
-            return None, None
+    def check_cache(url: str, file: pathlib.Path):
+        if file.exists():
+            try:
+                r = requests.head(url, allow_redirects=True, timeout=60)
+                if r.ok:
+                    if "last-modified" in r.headers:
+                        mod_date = parsedate_to_datetime(r.headers["last-modified"])
+                        if mod_date <= datetime.datetime.fromtimestamp(file.stat().st_ctime, datetime.UTC):
+                            return True
+            except TimeoutError:
+                logging.error("Failed to head %s", url)
+
+            file.unlink()
+
+        return False
 
     urldict: dict[str, pathlib.Path] = {}
-    total = 0
     count = 0
 
-    # census webserver doesn't return size info on HEAD command, so use FTP
-    with ftplib.FTP("ftp2.census.gov", user="Anonymous", passwd="") as ftp:
-        for f, urlt in URLS[dec_year].items():
-            url = urlt.format(
-                st=st,
-                year=dec_year,
-                yy=dec_year[2:],
-                state=states[st].name.replace(' ', '_'),
-                state_caps=states[st].name.upper().replace(' ', '_'),
-                st_caps=st.upper(),
-                fips=states[st].fips
-            )
+    for f, urlt in URLS[dec_year].items():
+        url = urlt.format(
+            st=st,
+            year=dec_year,
+            yy=dec_year[-2:],
+            state=states[st].name.replace(' ', '_'),
+            state_caps=states[st].name.upper().replace(' ', '_'),
+            st_caps=st.upper(),
+            fips=states[st].fips
+        )
 
-            if f == "shape":
-                for _, geog in geographies.items():
-                    check_file(url.format(geog=geog.shp))
-            else:
-                check_file(url)
+        if f == "shape":
+            for _, geog in geographies.items():
+                surl = url.format(geog=geog.shp)
+                fname = surl.rsplit('/', 1)[1]
+                urldict[surl] = dest_path / fname
+        else:
+            fname = url.rsplit('/', 1)[1]
+            urldict[url] = dest_path / fname
 
     for url, file_path in urldict.items():
-        if file_path.exists():
-            count += file_path.stat().st_size
+        if check_cache(url, file_path):
+            logging.info("Using cached %s", file_path.name)
+            count += 1
             prog(0)
             continue
 
@@ -199,8 +203,15 @@ def download_decennial(st: str, dec_year: str = "2020", dest_path: pathlib.Path 
         else:
             extract_to = dest_path / "shape"
         if not download(url, file_path, extract_to, prog):
-            logging.error("Failed to download %s", file_path.name)
-            return None
+            # pl data and block shape file are required -- failure to download is an error
+            fatal = file_path.name in (
+                f"{st}{dec_year}.pl.zip",
+                f"tl_{dec_year}_{states[st].fips}_{geographies['b'].shp}{dec_year[-2:]}.zip"
+            )
+
+            logging.log(logging.ERROR if fatal else logging.WARNING, "Failed to download %s", file_path.name)
+            if fatal:
+                return None
 
     return dest_path
 
@@ -529,7 +540,8 @@ def process_pl(
     else:
         dl_prog = None
 
-    src_path = download_decennial(st, dec_year, src_path, progress=dl_prog)
+    if not download_decennial(st, dec_year, src_path, progress=dl_prog):
+        return None
 
     if geogs is None:
         geogs = list(geographies.keys())
@@ -545,7 +557,8 @@ def process_pl(
         if init_gpkg:
             db.execute("SELECT gpkgCreateBaseTables()")
             db.execute(
-                "CREATE TABLE gpkg_ogr_contents (table_name TEXT NOT NULL PRIMARY KEY, feature_count INTEGER DEFAULT NULL)")
+                "CREATE TABLE gpkg_ogr_contents (table_name TEXT NOT NULL PRIMARY KEY, feature_count INTEGER DEFAULT NULL)"
+            )
 
         logging.info("Tabulating %s PL 94-171 data", dec_year)
         pl_data = load_pl_data(st, dec_year, src_path)
