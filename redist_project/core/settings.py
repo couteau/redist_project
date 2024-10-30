@@ -22,6 +22,7 @@
  *                                                                         *
  ***************************************************************************/
 """
+import os
 import pathlib
 
 from qgis.core import (
@@ -37,9 +38,12 @@ class RedistProjectSetttings:
     iface: QgisInterface
 
     def __init__(self):
-        self.datapath = pathlib.Path(
-            QgsApplication.qgisSettingsDirPath()
-        ) / "redist_data"
+        if "QGIS_REDIST_PROJECT_DATA_CACHE" in os.environ:
+            self.datapath = pathlib.Path(os.environ["QGIS_REDIST_PROJECT_DATA_CACHE"])
+        else:
+            self.datapath = pathlib.Path(
+                QgsApplication.qgisSettingsDirPath()
+            ) / "redist_data"
         self.iface = iface
         self.settings = QgsSettings()
         self._customPackages = None

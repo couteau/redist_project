@@ -47,7 +47,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..core.settings import settings
 from ..core.state import State
-from ..datapkg.bef import BEFData
+from ..datapkg.bef import EquivalencyData
 from ..datapkg.geography import geographies
 from ..datapkg.utils import cvap_years
 from ..datapkg.vr import validate_vr
@@ -61,9 +61,9 @@ class BEFModel(QAbstractTableModel):
 
     def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
-        self.befs: list[BEFData] = []
+        self.befs: list[EquivalencyData] = []
 
-    def addBEFData(self, data: BEFData):
+    def addBEFData(self, data: EquivalencyData):
         self.beginInsertRows(QModelIndex(), len(self.befs), len(self.befs))
         self.befs.append(data)
         self.endInsertRows()
@@ -214,12 +214,12 @@ class AcquireStateGpkgDialog(Ui_WizRedistrictingGpkg, QWizard):
 
         self.befModel = BEFModel(self)
         self.vwAddlBEFs.setModel(self.befModel)
-        self.vwAddlBEFs.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.vwAddlBEFs.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.vwAddlBEFs.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.vwAddlBEFs.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
 
         self.shpModel = ShapefileModel(self.cmDecennialYear.currentText(), self)
         self.vwAddlShapeFiles.setModel(self.shpModel)
-        self.vwAddlShapeFiles.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.vwAddlShapeFiles.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
 
         self.btnAddBEF.clicked.connect(self.addBEF)
         self.btnRemoveBEF.clicked.connect(self.removeBEF)
@@ -295,7 +295,7 @@ class AcquireStateGpkgDialog(Ui_WizRedistrictingGpkg, QWizard):
 
     def addShape(self):
         dlg = QFileDialog(self)
-        dlg.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dlg.setFileMode(QFileDialog.ExistingFile)
         dlg.setNameFilter("*.shp")
         if dlg.exec() == dlg.Accepted:
             for file in dlg.selectedFiles():

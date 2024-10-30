@@ -7,7 +7,7 @@ version=0.0.1-alpha
 author=Cryptodira
 email=stuart@cryptodira.org
 
-about=Create redistricting plans from geographic units. Calculation of cut edges score requires installation of GeoPandas and GerryChain python package. See https://github.com/mggg/gerrychain.
+about=Add-on for QGIS Redistricting Plugin to simplify creation of redistricting plans from U.S. Census geographies. 
 
 tracker=https://github.com/couteau/qgis_redistricting/issues
 repository=https://github.com/couteau/qgis_redistricting/tree/main/redistricting
@@ -20,7 +20,7 @@ hasProcessingProvider=no
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=districting,redistricting,democracy,gerrymandering
+tags=districting,redistricting,democracy,gerrymandering,census
 
 homepage=https://github.com/couteau/qgis_redistricting
 help=https://couteau.github.io/qgis_redistricting/

@@ -25,6 +25,7 @@
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtWidgets import QWizard
 
+from ..core.basemaps import BASEMAP_INDEX
 from ..core.state import (
     State,
     StateList
@@ -120,9 +121,15 @@ class NewProjectDialog(QWizard):
         return self.fields_page.fields
 
     @property
-    def baseMap(self):
+    def includeBaseMap(self):
         return self.incl_geog_page.cbBaseMap.isChecked()
 
     @property
-    def customLayers(self) -> bool:
-        return self.incl_geog_page.cbCustomLayers.isChecked()
+    def baseMap(self):
+        return self.incl_geog_page.cmbBaseMap.currentData(BASEMAP_INDEX) \
+            if self.incl_geog_page.cbBaseMap.isChecked() else None
+
+    @property
+    def includeCustomLayers(self) -> bool:
+        return self.incl_geog_page.cbCustomLayers.isChecked() \
+            and self.incl_geog_page.cmbBaseMap.currentData(BASEMAP_INDEX)[0] is not None

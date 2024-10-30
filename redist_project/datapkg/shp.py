@@ -22,6 +22,8 @@
  ***************************************************************************/
 """
 import pathlib
+import zipfile
+from tempfile import mkdtemp
 from typing import (
     Callable,
     Union
@@ -33,11 +35,26 @@ from osgeo import (
 )
 
 
+def unzip_shape(path: pathlib.Path):
+    s = mkdtemp()
+    with zipfile.ZipFile(path, "r") as z:
+        for zf in z.namelist():
+            if zf.endswith(".shp"):
+                shp = zf
+                break
+        else:
+            raise ValueError("Not a valid shapefile zipfile")
+        z.extractall(s)
+
+    return pathlib.Path(s) / shp
+
+
 def import_shape(
     gpkg_path: Union[str, pathlib.Path],
     shp_path: Union[str, pathlib.Path],
     layer_name: str = None,
     filt=None,
+    force_to_multipolygon: bool = True,
     progress: Callable[[float], None] = None  # pylint: disable=deprecated-typing-alias
 ):
     gdal.UseExceptions()
@@ -47,6 +64,9 @@ def import_shape(
     if isinstance(shp_path, str):
         shp_path = pathlib.Path(shp_path)
 
+    if zipfile.is_zipfile(shp_path):
+        shp_path = unzip_shape(shp_path)
+
     layer_name = layer_name or shp_path.stem
 
     src_ds: ogr.DataSource = ogr.Open(str(shp_path), False)
@@ -54,12 +74,12 @@ def import_shape(
         print(
             f"Unable to open datasource `{shp_path:s}'."
         )
-        return None
+        return False
 
     src_layer: ogr.Layer = src_ds.GetLayer()
     if src_layer is None:
         print("FAILURE: Couldn't fetch layer!")
-        return None
+        return False
 
     dest_ds: ogr.DataSource = None
     with ogr.ExceptionMgr(useExceptions=False), gdal.quiet_errors():
@@ -71,7 +91,7 @@ def import_shape(
     if filt is not None:
         if src_layer.SetAttributeFilter(filt) != 0:
             print(f"FAILURE: SetAttributeFilter({filt}) failed.")
-            return None
+            return False
 
     total = src_layer.GetFeatureCount()
     src_feat_defn: ogr.FeatureDefn = src_layer.GetLayerDefn()
@@ -86,19 +106,23 @@ def import_shape(
     if dest_layer is not None:
         if dest_ds.DeleteLayer(dest_layer.GetName()) != 0:
             print("DeleteLayer() failed when overwrite requested.")
-            return None
+            return False
 
         dest_layer = None
 
     # Create output layer
     gdal.ErrorReset()
+    if force_to_multipolygon and src_layer.GetGeomType() == ogr.wkbPolygon:
+        dest_geom: ogr.Geometry = ogr.wkbMultiPolygon
+    else:
+        dest_geom: ogr.Geometry = src_layer.GetGeomType()
     dest_layer = dest_ds.CreateLayer(
-        layer_name, dest_crs, src_layer.GetGeomType(),
+        layer_name, dest_crs, dest_geom,
         ['GEOMETRY_NAME=geom', 'SPATIAL_INDEX=YES', 'OVERWRITE=YES']
     )
     if dest_layer is None:
         print("Unable to create destination layer")
-        return None
+        return False
 
     src_field_count = src_feat_defn.GetFieldCount()
     field_map = list(range(src_field_count))
@@ -115,10 +139,9 @@ def import_shape(
             print(
                 f"Could not add output field {dest_field_defn.GetNameRef()}!"
             )
-            return None
+            return False
 
     dd: ogr.FeatureDefn = dest_layer.GetLayerDefn()
-    result = [dd.GetFieldDefn(i).name for i in range(dd.GetFieldCount())]
 
     src_layer.ResetReading()
     src_feature: ogr.Feature
@@ -129,7 +152,7 @@ def import_shape(
 
     while src_feature := src_layer.GetNextFeature():
         gdal.ErrorReset()
-        dest_feature = ogr.Feature(dest_layer.GetLayerDefn())
+        dest_feature = ogr.Feature(dd)
         if dest_feature.SetFromWithMap(src_feature, 1, field_map) != 0:
             if chunk_size > 0:
                 dest_layer.RollbackTransaction()
@@ -138,16 +161,17 @@ def import_shape(
                 f"Unable to translate feature {src_feature.GetFID()} from layer {src_layer.GetName()}"
             )
 
-            return None
+            return False
 
         dest_feature.SetFID(src_feature.GetFID())
         dest_geom: ogr.Geometry = dest_feature.GetGeometryRef()
         if dest_geom is not None:
+            dest_geom = dest_geom.MakeValid()
             dest_geom.AssignSpatialReference(dest_crs)
-            if dest_geom.GetGeometryType() == ogr.wkbPolygon:
-                dest_feature.SetGeometryDirectly(
-                    ogr.ForceToMultiPolygon(dest_geom)
-                )
+            if force_to_multipolygon and dest_geom.GetGeometryType() == ogr.wkbPolygon:
+                dest_geom = ogr.ForceToMultiPolygon(dest_geom)
+
+            dest_feature.SetGeometryDirectly(dest_geom)
 
         gdal.ErrorReset()
         if dest_layer.CreateFeature(dest_feature) != 0:
@@ -157,7 +181,7 @@ def import_shape(
             if chunk_size > 0:
                 dest_layer.RollbackTransaction()
 
-            return None
+            return False
 
         count = count + 1
         if chunk_size:
@@ -172,9 +196,10 @@ def import_shape(
 
     if chunk_size:
         dest_layer.CommitTransaction()
-        progress(100 * count / total)
+        if progress:
+            progress(100 * count / total)
 
     dest_ds.Destroy()
     src_ds.Destroy()
 
-    return result
+    return True

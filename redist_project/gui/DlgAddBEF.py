@@ -1,4 +1,4 @@
-"""QGIS Redistricting Project Plugin - Add Block Equivalency File
+"""QGIS Redistricting Project Plugin - Add Equivalency File Dialog
 
         begin                : 2024-01-24
         git sha              : $Format:%H$
@@ -49,7 +49,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget
 )
 
-from ..datapkg.bef import BEFData
+from ..datapkg.bef import EquivalencyData
 from .ui.DlgAddBEF import Ui_dlgAddBEF
 
 
@@ -109,7 +109,7 @@ class FieldSelectModel(QAbstractTableModel):
             return self._fields[row][col]
 
         if role == Qt.CheckStateRole and index.column() == 0:
-            return Qt.CheckState.Checked if self._fields[row]["selected"] else Qt.CheckState.Unchecked
+            return Qt.Checked if self._fields[row]["selected"] else Qt.Unchecked
 
         return QVariant()
 
@@ -119,7 +119,18 @@ class FieldSelectModel(QAbstractTableModel):
         if row >= self.joinIndex:
             row += 1
 
-        if index.column() == 1 and role == Qt.EditRole and isinstance(value, str) and value.isidentifier():
+        if index.column() == 1 and role == Qt.EditRole and isinstance(value, str):
+            if not value:
+                QgsMessageLog.logMessage("Field name must be provided", "Redistricting", Qgis.Critical)
+                return False
+
+            if value[0].isdigit():
+                value = "_" + value
+
+            if not value.isidentifier():
+                QgsMessageLog.logMessage("Field name is not a valid identifier", "Redistricting", Qgis.Critical)
+                return False
+
             for f in self._fields:
                 if f != self._fields[row] and f["col_name"] == value:
                     QgsMessageLog.logMessage("Field name must be unique", "Redistricting", Qgis.Critical)
@@ -130,7 +141,7 @@ class FieldSelectModel(QAbstractTableModel):
             return True
 
         if index.column() == 0 and role == Qt.CheckStateRole:
-            self._fields[row]["selected"] = value == Qt.CheckState.Checked
+            self._fields[row]["selected"] = value == Qt.Checked
             self.dataChanged.emit(index, index, [Qt.CheckStateRole])
             return True
 
@@ -159,12 +170,12 @@ class FieldSelectModel(QAbstractTableModel):
     def selectAll(self):
         for bef in self._fields:
             bef["selected"] = True
-        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rowCount()-1, 0), [Qt.CheckStateRole])
+        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rowCount() - 1, 0), [Qt.CheckStateRole])
 
     def selectNone(self):
         for bef in self._fields:
             bef["selected"] = False
-        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rowCount()-1, 0), [Qt.CheckStateRole])
+        self.dataChanged.emit(self.createIndex(0, 0), self.createIndex(self.rowCount() - 1, 0), [Qt.CheckStateRole])
 
 
 class AddBlockEquivalencyFileDialog(Ui_dlgAddBEF, QDialog):
@@ -210,7 +221,7 @@ class AddBlockEquivalencyFileDialog(Ui_dlgAddBEF, QDialog):
     def befData(self):
         if self.befLayer is not None and self.model is not None:
             joinField = self.model._fields[self.cmbJoinField.currentIndex()]["field"]
-            return BEFData(
+            return EquivalencyData(
                 pathlib.Path(self.befLayer.source()),
                 joinField,
                 {f["field"]: f["col_name"] for f in self.model._fields if f["selected"] and f["field"] != joinField}

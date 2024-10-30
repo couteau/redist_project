@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 __author__ = "Stuart C. Naifeh"
 __contact__ = "stuart@cryptodira.org"
-__copyright__ = "Copyright (c) 2022, Stuart C. Naifeh"
+__copyright__ = "Copyright (c) 2024, Stuart C. Naifeh"
 __license__ = "GPLv3"
 __version__ = "0.0.1"
 

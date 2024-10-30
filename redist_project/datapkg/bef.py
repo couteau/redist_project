@@ -23,31 +23,37 @@
 """
 import csv
 import pathlib
+from collections.abc import Callable
 from dataclasses import (
     dataclass,
     field
 )
-from itertools import islice
-from typing import (
-    Callable,
-    Iterable,
-    Union
-)
+from typing import Union
 
 import pandas as pd
 
-from .utils import spatialite_connect
+from .geography import geographies
+from .utils import (
+    batched,
+    spatialite_connect
+)
 
 
 @dataclass
-class BEFData:
+class EquivalencyData:
     # for csvs without a header, col names will be strings of numeric indexes
     filepath: pathlib.Path
     joinField: str
     addFields: Union[dict[str, str], dict[int, str]] = field(default_factory=dict)
 
 
-def add_bef_to_block(gpkg, dec_year, bef: BEFData, progress: Callable[[float], None]):  # pylint: disable=deprecated-typing-alias
+def import_equivalency(
+    gpkg: pathlib.Path,
+    geog: str,
+    dec_year: str,
+    bef: EquivalencyData,
+    progress: Callable[[float], None] = None
+):
     bef_file = pathlib.Path(bef.filepath).resolve()
     if not bef_file.exists() or not bef_file.is_file():
         return False
@@ -60,34 +66,24 @@ def add_bef_to_block(gpkg, dec_year, bef: BEFData, progress: Callable[[float], N
         index_col=bef.joinField,
         usecols=[bef.joinField, *bef.addFields.keys()],
         header=None if not has_header else "infer"
-    )
-    df.rename(columns=bef.addFields, inplace=True)
+    ).rename(columns=bef.addFields)
 
     with spatialite_connect(gpkg) as db:
-        sql = ";".join(f"ALTER TABLE block{dec_year[-2:]} ADD COLUMN {c} TEXT" for c in df.columns) + ";"
+        table = f'{geographies[geog].name}{dec_year[-2:]}'
+        sql = ";".join(f"ALTER TABLE {table} ADD COLUMN {c} TEXT" for c in df.columns) + ";"
 
         db.executescript(sql)
 
-        sql = f"UPDATE block{dec_year[-2:]} " \
+        sql = f"UPDATE {table} " \
             f"SET {', '.join(f'{f} = ?{n+2}' for n, f in enumerate(df.columns))} " \
             "WHERE geoid = ?1"
 
         total = len(df)
         count = 0
-        records: Iterable[tuple] = df.itertuples()  # pylint: disable=deprecated-typing-alias
-        chunk_size = total // 9
-        last_chunk = total % 9
-        for _ in range(9):
-            f = islice(records, chunk_size)
-            db.executemany(sql, f)
-            count += chunk_size
+        for chunk in batched(df.itertuples(), total // 9 if total % 9 != 0 else total // 10):
+            db.executemany(sql, chunk)
+            count += len(chunk)
             if progress:
                 progress(100 * count / total)
-        if last_chunk:
-            f = islice(records, last_chunk)
-            db.executemany(sql, f)
-            count += last_chunk
-        if progress:
-            progress(100 * count / total)
 
     return True

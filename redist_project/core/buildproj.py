@@ -25,17 +25,28 @@ import json
 import pathlib
 from typing import Optional
 
-from osgeo import ogr
+from osgeo import (
+    gdal,
+    ogr
+)
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsProject,
-    QgsVectorLayer,
-    QgsVectorTileLayer
+    QgsRelation,
+    QgsVectorLayer
 )
 from qgis.PyQt.QtCore import QDirIterator
+from redistricting.models import serialize
 from redistricting.services import PlanBuilder
 
-from ..datapkg.geography import Geography
+from ..datapkg.geography import (
+    Geography,
+    geographies
+)
+from .basemaps import (
+    BaseMapIndex,
+    BaseMapRegistry
+)
 from .fields import all_fields
 from .settings import settings
 from .state import State
@@ -57,27 +68,6 @@ subdiv_geographies = {
     'aiannh': ['b', 'bg', 't', 'vtd'],
     'county': ['b', 'bg', 't', 'vtd']
 }
-
-
-def add_base_map(project: QgsProject):
-    mapUrl = "https://www.qwant.com/maps/tiles/ozbasemap/{z}/{x}/{y}.pbf"
-    styleUrl = "https://raw.githubusercontent.com/QwantResearch/qwant-basic-gl-style/master/style.json"
-    zmin = 0
-    zmax = 14
-    uri = f"styleUrl={styleUrl}&type=xyz&url={mapUrl}&zmin={zmin}&zmax={zmax}"
-    tc = project.transformContext()
-    tc.addCoordinateOperation(
-        QgsCoordinateReferenceSystem("EPSG:3857"),
-        project.crs(),
-        "+proj=pipeline +step +inv +proj=webmerc +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +step "
-        "+proj=unitconvert +xy_in=rad +xy_out=deg",
-        True
-    )
-    project.setTransformContext(tc)
-    lyr = QgsVectorTileLayer(uri, "Qwant")
-    lyr.loadDefaultStyle()
-    lyr.setOpacity(0.5)
-    project.addMapLayer(lyr)
 
 
 def create_plan_template(
@@ -126,25 +116,26 @@ def create_plan_template(
 
     for f in fields:
         fld = all_fields[f]
-        builder.appendDataField(f, caption=fld["caption"], sumfield=fld["sum"], pctbase=fld["pctbase"])
+        builder.appendDataField(field=f, caption=fld["caption"], sumField=fld["sum"], pctBase=fld["pctbase"])
 
     return builder.createPlan(createLayers=False, planParent=QgsProject.instance(), )
 
 
 def build_project(
-        state: State,
-        numdistricts: int,
-        numseats: int = 0,
-        deviation: float = 0,
-        include_vap: bool = False,
-        include_cvap: bool = False,
-        include_vr: bool = False,
-        geogs: dict[str, Geography] = None,
-        subdiv_geog: Optional[str] = None,
-        subdiv_id: Optional[str] = None,
-        fields: Optional[list[str]] = None,
-        base_map: bool = False,
-        custom_layers: bool = True
+    state: State,
+    numdistricts: int,
+    numseats: int = 0,
+    deviation: float = 0,
+    include_vap: bool = False,
+    include_cvap: bool = False,
+    include_vr: bool = False,
+    geogs: dict[str, Geography] = None,
+    subdiv_geog: Optional[str] = None,
+    subdiv_id: Optional[str] = None,
+    fields: Optional[list[str]] = None,
+    base_map: bool = False,
+    base_map_index: BaseMapIndex = None,
+    custom_layers: bool = True
 ):
     project = QgsProject.instance()
     crs = QgsCoordinateReferenceSystem("EPSG:4269")
@@ -211,11 +202,30 @@ def build_project(
         subdiv_layer.loadNamedStyle(":/plugins/redist_project/style/county.qml")
         subdiv_layer.setLabelsEnabled(False)
 
-    for rel in project.relationManager().discoverRelations([], layers):
-        project.relationManager().addRelation(rel)
+    if hasattr(gdal.Dataset, 'GetRelationshipNames'):
+        for rel in project.relationManager().discoverRelations([], layers):
+            project.relationManager().addRelation(rel)
+    else:
+        for geog in geogs.values():
+            if geog.relations:
+                lyr = project.mapLayersByName(f"{geog.name}{state.year[-2:]}")[0]
+                for r in geog.relations:
+                    lyr_list = project.mapLayersByName(f"{geographies[r['related_geog']].name}{state.year[-2:]}")
+                    if not lyr_list:
+                        continue
 
-    if base_map:
-        add_base_map(project)
+                    ref_lyr = lyr_list[0]
+                    rel = QgsRelation()
+                    name = f"{geographies[r['related_geog']].name}{state.year[-2:]}_{geog.name}{state.year[-2:]}_{r['field']}"
+                    rel.setName(name)
+                    rel.setId(name)
+                    rel.setReferencedLayer(lyr.id())
+                    rel.setReferencingLayer(ref_lyr.id())
+                    rel.addFieldPair(r["related_field"], r['field'])
+                    project.relationManager().addRelation(rel)
+
+    if base_map and base_map_index is not None:
+        BaseMapRegistry.create_layer(base_map_index)
 
     plan = create_plan_template(
         state,
@@ -230,7 +240,7 @@ def build_project(
         fields
     )
 
-    s = json.dumps(plan.serialize())
+    s = json.dumps(serialize(plan))
 
     project.writeEntry('redistricting', 'us-state', state.code)
     project.writeEntry('redistricting', 'us-decennial', state.year)

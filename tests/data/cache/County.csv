@@ -1,0 +1,66 @@
+geoname,lntitle,geoid,lnnumber,tot_est,tot_moe,adu_est,adu_moe,cit_est,cit_moe,cvap_est,cvap_moe
+"Bristol County, Rhode Island",Total,0500000US44001,1,50670,0,41170,13,49520,340,40065,336
+"Bristol County, Rhode Island",Not Hispanic or Latino,0500000US44001,2,49005,0,39985,6,47915,339,38945,337
+"Bristol County, Rhode Island",American Indian or Alaska Native Alone,0500000US44001,3,30,36,20,24,30,36,20,24
+"Bristol County, Rhode Island",Asian Alone,0500000US44001,4,1240,121,920,74,975,143,685,113
+"Bristol County, Rhode Island",Black or African American Alone,0500000US44001,5,565,110,470,68,565,110,470,67
+"Bristol County, Rhode Island",Native Hawaiian or Other Pacific Islander Alone,0500000US44001,6,0,33,0,33,0,33,0,33
+"Bristol County, Rhode Island",White Alone,0500000US44001,7,46145,33,38110,33,45345,312,37325,318
+"Bristol County, Rhode Island",American Indian or Alaska Native and White,0500000US44001,8,210,36,150,27,210,36,150,27
+"Bristol County, Rhode Island",Asian and White,0500000US44001,9,400,119,135,64,400,119,135,64
+"Bristol County, Rhode Island",Black or African American and White,0500000US44001,10,340,110,120,68,340,110,120,68
+"Bristol County, Rhode Island",American Indian or Alaska Native and Black or African American,0500000US44001,11,10,17,10,17,10,17,10,17
+"Bristol County, Rhode Island",Remainder of Two or More Race Responses,0500000US44001,12,55,49,45,43,35,35,25,25
+"Bristol County, Rhode Island",Hispanic or Latino,0500000US44001,13,1665,0,1185,0,1605,53,1120,54
+"Kent County, Rhode Island",Total,0500000US44003,1,169345,0,137480,0,164465,785,133295,669
+"Kent County, Rhode Island",Not Hispanic or Latino,0500000US44003,2,159495,0,130935,0,155590,737,127590,638
+"Kent County, Rhode Island",American Indian or Alaska Native Alone,0500000US44003,3,230,134,140,75,225,134,135,75
+"Kent County, Rhode Island",Asian Alone,0500000US44003,4,5255,256,3855,193,3270,352,2300,297
+"Kent County, Rhode Island",Black or African American Alone,0500000US44003,5,3130,304,2580,200,2905,326,2355,272
+"Kent County, Rhode Island",Native Hawaiian or Other Pacific Islander Alone,0500000US44003,6,20,26,20,26,20,26,20,26
+"Kent County, Rhode Island",White Alone,0500000US44003,7,147755,33,122530,33,146100,580,121005,511
+"Kent County, Rhode Island",American Indian or Alaska Native and White,0500000US44003,8,800,133,640,87,800,133,640,87
+"Kent County, Rhode Island",Asian and White,0500000US44003,9,610,237,350,166,610,237,350,166
+"Kent County, Rhode Island",Black or African American and White,0500000US44003,10,1275,287,580,184,1240,286,550,178
+"Kent County, Rhode Island",American Indian or Alaska Native and Black or African American,0500000US44003,11,75,75,75,75,75,75,75,75
+"Kent County, Rhode Island",Remainder of Two or More Race Responses,0500000US44003,12,345,128,165,114,345,128,165,114
+"Kent County, Rhode Island",Hispanic or Latino,0500000US44003,13,9850,0,6545,0,8875,292,5700,243
+"Newport County, Rhode Island",Total,0500000US44005,1,85525,0,71270,36,83445,463,69325,421
+"Newport County, Rhode Island",Not Hispanic or Latino,0500000US44005,2,80400,0,67835,35,78680,410,66220,361
+"Newport County, Rhode Island",American Indian or Alaska Native Alone,0500000US44005,3,335,144,335,144,335,144,335,144
+"Newport County, Rhode Island",Asian Alone,0500000US44005,4,1225,290,945,188,1120,293,845,185
+"Newport County, Rhode Island",Black or African American Alone,0500000US44005,5,3350,335,2465,246,3050,369,2165,309
+"Newport County, Rhode Island",Native Hawaiian or Other Pacific Islander Alone,0500000US44005,6,0,33,0,33,0,33,0,33
+"Newport County, Rhode Island",White Alone,0500000US44005,7,73115,33,62405,33,71940,310,61230,310
+"Newport County, Rhode Island",American Indian or Alaska Native and White,0500000US44005,8,265,144,245,140,265,144,245,140
+"Newport County, Rhode Island",Asian and White,0500000US44005,9,960,289,610,179,825,264,575,169
+"Newport County, Rhode Island",Black or African American and White,0500000US44005,10,815,308,505,219,815,308,505,219
+"Newport County, Rhode Island",American Indian or Alaska Native and Black or African American,0500000US44005,11,25,38,25,38,25,38,25,38
+"Newport County, Rhode Island",Remainder of Two or More Race Responses,0500000US44005,12,310,174,300,171,310,174,300,171
+"Newport County, Rhode Island",Hispanic or Latino,0500000US44005,13,5125,0,3435,0,4765,206,3105,190
+"Providence County, Rhode Island",Total,0500000US44007,1,656670,0,520880,79,599650,3120,470535,2480
+"Providence County, Rhode Island",Not Hispanic or Latino,0500000US44007,2,499155,0,413460,76,474840,1877,391250,1576
+"Providence County, Rhode Island",American Indian or Alaska Native Alone,0500000US44007,3,1800,340,1270,236,1800,340,1270,236
+"Providence County, Rhode Island",Asian Alone,0500000US44007,4,27660,611,22285,435,18890,970,14245,800
+"Providence County, Rhode Island",Black or African American Alone,0500000US44007,5,57740,1473,43435,894,51030,1629,37705,1128
+"Providence County, Rhode Island",Native Hawaiian or Other Pacific Islander Alone,0500000US44007,6,570,134,370,89,500,161,300,73
+"Providence County, Rhode Island",White Alone,0500000US44007,7,394895,33,336135,33,386440,1142,328045,1105
+"Providence County, Rhode Island",American Indian or Alaska Native and White,0500000US44007,8,2540,340,2000,236,2530,340,1990,236
+"Providence County, Rhode Island",Asian and White,0500000US44007,9,3730,588,2075,422,3625,576,1985,392
+"Providence County, Rhode Island",Black or African American and White,0500000US44007,10,7440,1241,3805,716,7315,1233,3680,715
+"Providence County, Rhode Island",American Indian or Alaska Native and Black or African American,0500000US44007,11,1010,321,910,286,1010,321,910,286
+"Providence County, Rhode Island",Remainder of Two or More Race Responses,0500000US44007,12,1770,416,1165,310,1705,408,1120,312
+"Providence County, Rhode Island",Hispanic or Latino,0500000US44007,13,157515,0,107425,0,124810,2581,79290,2129
+"Washington County, Rhode Island",Total,0500000US44009,1,129735,0,108485,0,127225,543,106230,483
+"Washington County, Rhode Island",Not Hispanic or Latino,0500000US44009,2,125225,0,105400,0,123185,474,103600,409
+"Washington County, Rhode Island",American Indian or Alaska Native Alone,0500000US44009,3,820,305,610,197,820,305,610,197
+"Washington County, Rhode Island",Asian Alone,0500000US44009,4,2510,313,2200,254,1480,260,1385,247
+"Washington County, Rhode Island",Black or African American Alone,0500000US44009,5,1340,256,1080,226,1225,255,965,212
+"Washington County, Rhode Island",Native Hawaiian or Other Pacific Islander Alone,0500000US44009,6,10,13,10,13,10,13,10,13
+"Washington County, Rhode Island",White Alone,0500000US44009,7,117730,33,99740,33,116865,364,98895,345
+"Washington County, Rhode Island",American Indian or Alaska Native and White,0500000US44009,8,535,303,430,197,535,303,430,197
+"Washington County, Rhode Island",Asian and White,0500000US44009,9,955,311,500,251,940,310,480,248
+"Washington County, Rhode Island",Black or African American and White,0500000US44009,10,1025,277,620,230,1015,275,605,231
+"Washington County, Rhode Island",American Indian or Alaska Native and Black or African American,0500000US44009,11,70,60,70,60,70,60,70,60
+"Washington County, Rhode Island",Remainder of Two or More Race Responses,0500000US44009,12,230,187,145,116,230,187,145,116
+"Washington County, Rhode Island",Hispanic or Latino,0500000US44009,13,4510,0,3090,0,4040,211,2630,212

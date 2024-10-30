@@ -21,8 +21,18 @@
  *                                                                         *
  ***************************************************************************/
 """
+from typing import TypedDict
+
+
+class Field(TypedDict):
+    field: str
+    type: str
+    source: list[str]
+    total: str
+
+
 # nopep8
-pop_fields = [
+pop_fields: list[Field] = [
     {"field": "pop_total", "type": "INTEGER",
         "source": ["p0010001"], "total": ""},
     {"field": "pop_white", "type": "INTEGER",

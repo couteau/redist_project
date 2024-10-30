@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>300</height>
+    <height>303</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -96,18 +96,28 @@
      <property name="title">
       <string>Other Layers</string>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout_2">
-      <item>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
        <widget class="QCheckBox" name="cbCustomLayers">
         <property name="text">
          <string>Include Custom Layers</string>
         </property>
        </widget>
       </item>
-      <item>
+      <item row="1" column="0">
        <widget class="QCheckBox" name="cbBaseMap">
+        <property name="toolTip">
+         <string>Add a vector tile base map from MapTiler or HCMGIS plugin</string>
+        </property>
         <property name="text">
-         <string>Include Qwant base-map</string>
+         <string>Include Base-map</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="cmbBaseMap">
+        <property name="placeholderText">
+         <string>Select base map provider...</string>
         </property>
        </widget>
       </item>

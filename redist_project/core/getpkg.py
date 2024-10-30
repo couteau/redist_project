@@ -41,10 +41,10 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ..intl import tr
 from .buildpkg import BuildGeopackageTask
 from .download import StateDownloadTask
 from .state import State
+from .utils import tr
 
 
 def download_gpkg(state: State, parent: QWidget = None):

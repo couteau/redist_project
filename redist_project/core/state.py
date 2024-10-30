@@ -45,7 +45,14 @@ geog_order = [
 
 
 class State(QObject):
-    def __init__(self, st: CensusState, year: str, gpkg_path=None, custom_id: Optional[str] = None, custom_name=""):
+    def __init__(
+        self,
+        st: CensusState,
+        year: str,
+        gpkg_path: pathlib.Path = None,
+        custom_id: Optional[str] = None,
+        custom_name: str = ""
+    ):
         super().__init__(None)
         self.st = st
         self.year = year

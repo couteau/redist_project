@@ -22,23 +22,23 @@
  *                                                                         *
  ***************************************************************************/
 """
-import datetime
 import logging
 import pathlib
 import sqlite3
 import zipfile
 from collections.abc import Callable
-from email.message import Message
-from email.utils import parsedate_to_datetime
 from tempfile import mkdtemp
 
 import numpy as np
 import pandas as pd
-import requests
 
 from .geography import geographies
 from .state import states
-from .utils import spatialite_connect
+from .utils import (
+    check_cache,
+    download,
+    spatialite_connect
+)
 
 categories = [
     "Total",
@@ -110,7 +110,7 @@ base_fields = {
     "cpop_nonhispanic": "pop_nonhispanic",
 }
 
-# PL data reports has total multiracial
+# PL data reports total multiracial
 # CVAP data reports "other" multiracial - i.e., multiracial categories other than those reported separately
 # meaning we need to subtract out the multiracial categories reported separately in the CVAP from
 # the total multiracial to have a valid PL baseline for allocation of CVAP data
@@ -118,58 +118,9 @@ mr_subtract = ["{pop}_nh_black_aiakn", "{pop}_nh_aiakn_white",
                "{pop}_nh_black_white", "{pop}_nh_asian_white"]
 
 
-def check_cache(cvap_url: str, cache_path: pathlib.Path):
-    r = requests.head(cvap_url, allow_redirects=True, timeout=60)
-    if r.ok:
-        msg = Message()
-        msg['content-disposition'] = r.headers.get('content-disposition')
-        fname = msg.get_filename()
-
-        if not fname:
-            fname = cvap_url.rsplit('/', 1)[1]
-
-        file_path: pathlib.Path = cache_path / fname
-        if file_path.exists():
-            if "last-modified" in r.headers:
-                mod_date = parsedate_to_datetime(r.headers["last-modified"])
-                if mod_date <= datetime.datetime.fromtimestamp(file_path.stat().st_ctime, tz=datetime.UTC):
-                    return True, file_path
-
-            file_path.unlink()
-
-    return False, file_path
-
-
 def download_cvap(cvap_url, file_path: pathlib.Path, progress: Callable[[float], None] = None):
-    retries = 3
-    while retries > 0:
-        try:
-            r = requests.get(cvap_url, allow_redirects=True, timeout=60, stream=True)
-            if not r.ok:
-                if r.status_code == 404:
-                    return None
-                else:
-                    raise r.raise_for_status()
-
-            total = int(r.headers.get("content-length", 0))
-            count = 0
-            block_size = 4096
-            with file_path.open("wb+") as file:
-                for data in r.iter_content(block_size):
-                    if total:
-                        count += len(data)
-                    else:
-                        count += 1
-                    if progress:
-                        progress(min(100, 100 * count / total) if total else min(count, 100))
-                    file.write(data)
-        except TimeoutError:
-            retries -= 1
-            if retries == 0:
-                raise
-            continue
-
-        break
+    if not download(cvap_url, file_path, progress, tries=3):
+        return None
 
     with zipfile.ZipFile(file_path, "r") as z:
         z.extractall(file_path.parent)
@@ -195,19 +146,13 @@ def load_cvap(st_fips, path: pathlib.Path):
     # drop US prefix from geoid
     cvap.geoid = cvap.geoid.str[9:]
 
-    # drop unused columns
-    cvap.drop(columns=["geoname", "lntitle",
-              "cit_moe", "cvap_moe"], inplace=True)
-
-    # rename population category columns
-    cvap.rename(columns={"cit_est": "cpop", "cvap_est": "cvap"}, inplace=True)
-
-    # pivot the race/ethnicity categories
-    cvap = cvap.pivot(index="geoid", columns="lnnumber",
-                      values=["cpop", "cvap"])
-
+    # drop unused columns, rename population category columns,
+    # pivot the race/ethnicity categories, and
     # rename race/ethnicity columns from numbers to names
-    cvap.rename(columns=col_names, level=1, inplace=True)
+    cvap = cvap.drop(columns=["geoname", "lntitle", "cit_moe", "cvap_moe"]) \
+        .rename(columns={"cit_est": "cpop", "cvap_est": "cvap"}) \
+        .pivot(index="geoid", columns="lnnumber", values=["cpop", "cvap"]) \
+        .rename(columns=col_names, level=1)
 
     # combine column names
     cvap.columns = ['_'.join(col) for col in cvap.columns.values]
@@ -232,36 +177,44 @@ def add_fields(cvap: pd.DataFrame):
     pct_vap_df = cvap[list(base_fields.keys())[:12] + [f"cvap_{f}" for f in combined_cols.keys()]] \
         .div(cvap['cvap_total'], axis=0) \
         .rename(columns=lambda x: f"pct_{x}") \
-        .replace(np.NaN, None)
+        .replace(np.nan, None)
     pct_pop_df = cvap[list(base_fields.keys())[12:] + [f"cpop_{f}" for f in combined_cols.keys()]] \
         .div(cvap['cpop_total'], axis=0) \
         .rename(columns=lambda x: f"pct_{x}") \
-        .replace(np.NaN, None)
+        .replace(np.nan, None)
 
     return cvap.join([pct_vap_df, pct_pop_df])
 
 
-def aggregate_cvap(geog: str, block_cvap: pd.DataFrame):
+def aggregate_block(geog: str, block_cvap: pd.DataFrame):
     id_field = f"{geographies[geog].name}id"
     return block_cvap.drop(columns={'vtdid', 'cousubid', 'aiannhid', 'concityid'} - {id_field}).groupby(id_field).sum()
 
 
-def disaggregate_cvap(gpkg, geog, dec_year, cvap: pd.DataFrame, progress: Callable[[float], None] = None, prog_inc: int = 20):
+def disaggregate_blkgrp_to_block(
+        gpkg: pathlib.Path,
+        geog: str,
+        dec_year: str,
+        cvap: pd.DataFrame,
+        progress: Callable[[float], None] = None,
+        prog_inc: int = 20
+):
     table = f"{geographies[geog].name}{dec_year[-2:]}"
     with spatialite_connect(gpkg) as db:
         pl = pd.read_sql_query(f"select * from {table} order by geoid", db).drop(columns="geom")
 
     # compute base fields for CVAP multiracial category
-    pl['pop_other_multiracial'] = pl["pop_nh_multiracial"] - \
-        pl[[f.format(pop='pop') for f in mr_subtract]].sum(axis=1)
-    pl['vap_other_multiracial'] = pl["vap_nh_multiracial"] - \
-        pl[[f.format(pop='vap') for f in mr_subtract]].sum(axis=1)
+    pl['pop_other_multiracial'] = \
+        pl["pop_nh_multiracial"] - pl[[f.format(pop='pop') for f in mr_subtract]].sum(axis=1)
+    pl['vap_other_multiracial'] = \
+        pl["vap_nh_multiracial"] - pl[[f.format(pop='vap') for f in mr_subtract]].sum(axis=1)
 
     fields = ["blkgrpid", *totals.values(), *base_fields.values()]
-    pl_bg = pl[fields].groupby('blkgrpid').agg({f: "sum" for f in fields[1:]} | {
-        "blkgrpid": "count"}).rename(columns={"blkgrpid": "COUNT"})
-    pl = pl.join(pl_bg.add_suffix("_bg"), how="left", on="blkgrpid")
-    pl = pl.join(cvap.add_suffix("_bg"), how="left", on="blkgrpid")
+    pl_bg = pl[fields].groupby('blkgrpid') \
+        .agg({f: "sum" for f in fields[1:]} | {"blkgrpid": "count"}) \
+        .rename(columns={"blkgrpid": "COUNT"})
+    pl = pl.join(pl_bg.add_suffix("_bg"), how="left", on="blkgrpid") \
+        .join(cvap.add_suffix("_bg"), how="left", on="blkgrpid")
 
     new_cols = {
         "geoid": pl["geoid"].copy(),
@@ -271,11 +224,11 @@ def disaggregate_cvap(gpkg, geog, dec_year, cvap: pd.DataFrame, progress: Callab
         "concityid": pl["concityid"].copy(),
     }
     total = len(totals) + len(base_fields)
-    inc = prog_inc/total
+    inc = prog_inc / total
     # pylint: disable=cell-var-from-loop
     for col, base in totals.items():
         new_cols[col] = pl.apply(
-            lambda r: r[f"{col}_bg"] * r[base]/r[f"{base}_bg"]
+            lambda r: r[f"{col}_bg"] * r[base] / r[f"{base}_bg"]
             if r[f"{base}_bg"] != 0
             else r[f"{col}_bg"] / r["COUNT_bg"],
             axis=1
@@ -285,7 +238,7 @@ def disaggregate_cvap(gpkg, geog, dec_year, cvap: pd.DataFrame, progress: Callab
 
     for col, base in base_fields.items():
         new_cols[col] = pl.apply(
-            lambda r: r[f"{col}_bg"] * r[base]/r[f"{base}_bg"]
+            lambda r: r[f"{col}_bg"] * r[base] / r[f"{base}_bg"]
             if r[f"{base}_bg"] != 0
             else r[f"{col}_bg"] * r[f"{base[:3]}_total"] / r[f"{base[:3]}_total_bg"]
             if r[f"{base[:3]}_total_bg"] != 0
@@ -296,8 +249,7 @@ def disaggregate_cvap(gpkg, geog, dec_year, cvap: pd.DataFrame, progress: Callab
             progress(inc)
     # pylint: enable=cell-var-from-loop
 
-    cvap_df = pd.DataFrame.from_dict(new_cols)
-    cvap_df.set_index('geoid', inplace=True)
+    cvap_df = pd.DataFrame.from_dict(new_cols).set_index('geoid')
 
     return add_fields(cvap_df)
 
@@ -306,7 +258,7 @@ def add_cvap_data_to_geog(db: sqlite3.Connection, geog, dec_year, geog_cvap: pd.
     fields = [*totals.keys(), *base_fields.keys()]
     fields.extend(f"cvap_{f}" for f in combined_cols)
     fields.extend(f"cpop_{f}" for f in combined_cols)
-    fields.extend(f"pct_{f}" for f in base_fields.keys())
+    fields.extend(f"pct_{f}" for f in base_fields)
     fields.extend(f"pct_cvap_{f}" for f in combined_cols)
     fields.extend(f"pct_cpop_{f}" for f in combined_cols)
     table = f"{geographies[geog].name}{dec_year[-2:]}"
@@ -337,7 +289,7 @@ def add_cvap_data_to_gpkg(
     state: str,
     dec_year: str,
     cvap_year: str,
-    src_path=None,
+    cache_path=None,
     prog_cb: Callable[[float], None] = None
 ):
     def dl_prog(p: float):
@@ -348,15 +300,16 @@ def add_cvap_data_to_gpkg(
         if prog_cb:
             nonlocal count
             count += n
-            prog_cb(100 * count/total)
+            prog_cb(100 * count / total)
 
-    if src_path is None:
-        src_path = pathlib.Path(mkdtemp())
+    if cache_path is None:
+        cache_path = pathlib.Path(mkdtemp())
 
+    file_name = f'CVAP_{int(cvap_year)-4}-{cvap_year}_ACS_csv_files.zip'
     cvap_url = 'https://www2.census.gov/programs-surveys/decennial/rdo/datasets/' \
-        f'{cvap_year}/{cvap_year}-cvap/CVAP_{int(cvap_year)-4}-{cvap_year}_ACS_csv_files.zip'
-    cached, file_path = check_cache(cvap_url, src_path)
-    if not cached:
+        f'{cvap_year}/{cvap_year}-cvap/{file_name}'
+    file_path = cache_path / file_name
+    if not check_cache(cvap_url, file_path):
         logging.info("Downloading %s CVAP data for %s", cvap_year, states[state].name)
         if not download_cvap(cvap_url, file_path, dl_prog):
             return False
@@ -374,15 +327,14 @@ def add_cvap_data_to_gpkg(
         # first do blocks from blockgroups
         if not check_cvap_cols_exist(db, "b", dec_year):
             logging.info("Loading block group CVAP data")
-            geog_cvap = load_cvap(states[state].fips, src_path / "BlockGr.csv")
+            geog_cvap = load_cvap(states[state].fips, cache_path / "BlockGr.csv")
             logging.info("Disaggregating block group CVAP data to census blocks")
-            block_cvap = disaggregate_cvap(gpkg_name, "b", dec_year, geog_cvap, progress)
+            block_cvap = disaggregate_blkgrp_to_block(gpkg_name, "b", dec_year, geog_cvap, progress)
             logging.info("Adding CVAP columns to census blocks")
             add_cvap_data_to_geog(db, "b", dec_year, block_cvap.drop(
                 columns=["vtdid", "cousubid", "aiannhid", "concityid"]))
             # drop pct columns before aggregating to other levels
-            block_cvap.drop(columns=block_cvap.filter(
-                regex="pct_").columns, inplace=True)
+            block_cvap = block_cvap.drop(columns=block_cvap.filter(regex="pct_").columns)
         else:
             logging.info("CVAP data already present in census block table")
 
@@ -407,10 +359,10 @@ def add_cvap_data_to_gpkg(
                 logging.info("Aggregating CVAP data to %s", geog.name)
                 if block_cvap is None:
                     block_cvap = read_block_cvap(db, dec_year)
-                geog_cvap = aggregate_cvap(g, block_cvap)
+                geog_cvap = aggregate_block(g, block_cvap)
             elif g != "bg" or geog_cvap is None:
                 logging.info("Loading %s CVAP data", geog.name)
-                geog_cvap = load_cvap(states[state].fips, src_path / f"{geog.cvap}.csv")
+                geog_cvap = load_cvap(states[state].fips, cache_path / f"{geog.cvap}.csv")
 
             geog_cvap = add_fields(geog_cvap)
             logging.info("Adding CVAP columns to %s for %s", geog.name, states[state].name)

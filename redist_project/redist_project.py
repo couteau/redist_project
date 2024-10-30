@@ -34,7 +34,7 @@ from qgis.utils import (
 )
 
 from .actions import RedistProjectActions
-from .controller.ProjectCtlr import ProjectController
+from .controller.projectctlr import ProjectController
 from .resources import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 
@@ -52,6 +52,7 @@ class RdProjectGenerator:
         self.newPlanOrig = None
         self.editPlanOrig = None
         self.newProjectDlg = None
+        self.loaded = False
 
     @staticmethod
     def tr(message):
@@ -72,8 +73,13 @@ class RdProjectGenerator:
         toolbar = self.iface.fileToolBar()
         toolbar.insertAction(toolbar.actions()[1], self.projectController.newProjectAction)
 
+        self.loaded = True
+
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
+        if not self.loaded:
+            return
+
         toolbar = self.iface.fileToolBar()
         toolbar.removeAction(self.projectController.newProjectAction)
 
@@ -81,3 +87,5 @@ class RdProjectGenerator:
         menu.removeAction(self.projectController.newProjectAction)
 
         self.projectController.unload()
+
+        self.loaded = False

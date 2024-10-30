@@ -33,8 +33,7 @@ from typing import (
 
 from qgis.core import (
     QgsApplication,
-    QgsProject,
-    QgsReadWriteContext
+    QgsProject
 )
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QObject
@@ -44,7 +43,10 @@ from qgis.PyQt.QtXml import QDomDocument
 from qgis.utils import plugins
 from redistricting.controllers import PlanController
 from redistricting.gui import DlgEditPlan
-from redistricting.models import RedistrictingPlan
+from redistricting.models import (
+    RdsPlan,
+    deserialize
+)
 from redistricting.redistricting import Redistricting
 from redistricting.services import (
     PlanBuilder,
@@ -63,12 +65,12 @@ from ..core.state import (
     State,
     StateList
 )
+from ..core.utils import tr
 from ..gui import (
     AcquireStateGpkgDialog,
     NewPlanDialog,
     NewProjectDialog
 )
-from ..intl import tr
 
 
 class ProjectController(QObject):
@@ -81,16 +83,16 @@ class ProjectController(QObject):
         self.redist_plugin: Redistricting = None
         self.planController: PlanController = None
         self.planStyler: PlanStylerService = None
-        self.patched = False
+        self.isRedistProject = False
 
         self.states = {
             "2010": StateList("2010"),
             "2020": StateList("2020")
         }
 
-        self.state: State = None
-        self.year: str = None
-        self.template: dict = None
+        self.state: Optional[State] = None
+        self.year: Optional[str] = None
+        self.template: Optional[RdsPlan] = None
         self.new_state: State = None
 
         self.newProjectAction = self.actions.createAction(
@@ -123,6 +125,28 @@ class ProjectController(QObject):
             self
         )
 
+    def load(self):
+        self.redist_plugin: Redistricting = plugins.get("redistricting", None)
+        if self.redist_plugin is None:
+            return
+
+        self.planController = self.redist_plugin.planController
+        self.planStyler = self.redist_plugin.planStyler
+
+        self.advancedEditPlan = self.planController.editPlan
+        self.advancedNewPlan = self.planController.newPlan
+
+        self.project.readProject.connect(self.onReadProject)
+        self.project.cleared.connect(self.onCloseProject)
+
+        self.patchRedistrictingMenu(True)
+
+    def unload(self):
+        self.patchRedistrictingMenu(False)
+
+        self.project.readProject.disconnect(self.onReadProject)
+        self.project.cleared.disconnect(self.onCloseProject)
+
     def readProjectParams(self):
         state, success = self.project.readEntry('redistricting', 'us-state', None)
         if success and state:
@@ -132,60 +156,45 @@ class ProjectController(QObject):
             else:
                 success = False
 
+            # pylint: disable-next=possibly-used-before-assignment
             if success and s:
                 self.state = self.states[year][state]
                 self.year = year
-                self.template = RedistrictingPlan.deserialize(json.loads(s), self.project)
+                self.template = deserialize(RdsPlan, json.loads(s))
             else:
                 success = False
         else:
             success = False
 
-        if success:
-            self.patchRedistrictingMenu(True)
-        else:
-            self.patchRedistrictingMenu(False)
+        return success
 
-    def load(self):
-        self.redist_plugin: Redistricting = plugins["redistricting"]
-        self.planController = self.redist_plugin.planController
-        self.planStyler = self.redist_plugin.planStyler
-
-        self.advancedEditPlan = self.planController.editPlan
-        self.advancedNewPlan = self.planController.newPlan
-
-        self.project.readProjectWithContext.connect(self.onReadProject)
-        self.project.cleared.connect(self.onCloseProject)
-
-        self.patched = None
-
-    def unload(self):
-        self.patchRedistrictingMenu(False)
-
-        self.project.readProjectWithContext.disconnect(self.onReadProject)
-        self.project.cleared.disconnect(self.onCloseProject)
-
-    def onReadProject(self, doc: QDomDocument, context: QgsReadWriteContext):  # pylint: disable=unused-argument
-        self.readProjectParams()
-
-    def onCloseProject(self):
+    def clearProjectParams(self):
         self.state = None
         self.year = None
         self.template = None
-        self.patchRedistrictingMenu(False)
+
+    def onReadProject(self, doc: QDomDocument):  # pylint: disable=unused-argument
+        self.isRedistProject = self.readProjectParams()
+
+    def onCloseProject(self):
+        self.clearProjectParams()
+        self.isRedistProject = False
 
     def patchRedistrictingMenu(self, patch: bool = True):
-        if self.redist_plugin:
-            if patch and not self.patched:
-                self.redist_plugin.planController.actionNewPlan.triggered.disconnect(self.advancedNewPlan)
-                self.redist_plugin.planController.actionEditPlan.triggeredForPlan.disconnect(self.advancedEditPlan)
-                self.redist_plugin.planController.actionNewPlan.triggered.connect(self.newPlan)
-                self.redist_plugin.planController.actionEditPlan.triggeredForPlan.connect(self.editPlan)
-            elif not patch and self.patched:
-                self.redist_plugin.planController.actionNewPlan.triggered.disconnect(self.newPlan)
-                self.redist_plugin.planController.actionEditPlan.triggeredForPlan.disconnect(self.editPlan)
-                self.redist_plugin.planController.actionNewPlan.triggered.connect(self.advancedNewPlan)
-                self.redist_plugin.planController.actionEditPlan.triggeredForPlan.connect(self.advancedEditPlan)
+        if patch:
+            self.redist_plugin.planController.actionNewPlan.triggered.disconnect(self.advancedNewPlan)
+            self.redist_plugin.planController.actionEditPlan.triggeredForPlan.disconnect(self.advancedEditPlan)
+            self.redist_plugin.planController.actionEditActivePlan.triggeredForPlan.disconnect(self.advancedEditPlan)
+            self.redist_plugin.planController.actionNewPlan.triggered.connect(self.newPlan)
+            self.redist_plugin.planController.actionEditPlan.triggeredForPlan.connect(self.editPlan)
+            self.redist_plugin.planController.actionEditActivePlan.triggeredForPlan.connect(self.editPlan)
+        else:
+            self.redist_plugin.planController.actionNewPlan.triggered.disconnect(self.newPlan)
+            self.redist_plugin.planController.actionEditPlan.triggeredForPlan.disconnect(self.editPlan)
+            self.redist_plugin.planController.actionEditActivePlan.triggeredForPlan.disconnect(self.editPlan)
+            self.redist_plugin.planController.actionNewPlan.triggered.connect(self.advancedNewPlan)
+            self.redist_plugin.planController.actionEditPlan.triggeredForPlan.connect(self.advancedEditPlan)
+            self.redist_plugin.planController.actionEditActivePlan.triggeredForPlan.connect(self.advancedEditPlan)
 
     def newProject(self):
         dlg = NewProjectDialog(self.states, self.iface.mainWindow())
@@ -205,8 +214,9 @@ class ProjectController(QObject):
                     subdiv_geog=dlg.subdivision_geog,
                     subdiv_id=dlg.subdivision_geoid,
                     fields=dlg.dataFields,
-                    base_map=dlg.baseMap,
-                    custom_layers=dlg.customLayers
+                    base_map=dlg.includeBaseMap,
+                    base_map_index=dlg.baseMap,
+                    custom_layers=dlg.includeCustomLayers
                 )
                 self.readProjectParams()
 
@@ -265,6 +275,10 @@ class ProjectController(QObject):
             self.acquireStatePackage()
 
     def newPlan(self):
+        if not self.isRedistProject:
+            self.advancedNewPlan()
+            return
+
         dlg = NewPlanDialog(self.state, self.template, self.iface.mainWindow())
         r = dlg.exec()
         if r == QDialog.Accepted:
@@ -298,8 +312,8 @@ class ProjectController(QObject):
                     .setGeoIdField(dlgNewPlan.geoIdField()) \
                     .setGeoDisplay(dlgNewPlan.geoIdCaption()) \
                     .setGeoLayer(dlgNewPlan.geoLayer()) \
+                    .setGeoJoinField(dlgNewPlan.joinField()) \
                     .setPopLayer(dlgNewPlan.popLayer()) \
-                    .setJoinField(dlgNewPlan.joinField()) \
                     .setPopField(dlgNewPlan.popField()) \
                     .setPopFields(dlgNewPlan.popFields()) \
                     .setDataFields(dlgNewPlan.dataFields()) \
@@ -309,6 +323,10 @@ class ProjectController(QObject):
                 self.planController.buildPlan(builder)
 
     def editPlan(self, plan):
+        if not self.isRedistProject:
+            self.advancedEditPlan(plan)
+            return
+
         dlg = NewPlanDialog(plan, self.iface.mainWindow())
         dlg.setWindowTitle(self.tr('Edit Redistricting Plan'))
         r = dlg.exec()

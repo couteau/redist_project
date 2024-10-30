@@ -26,10 +26,11 @@ from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QWizard
 )
-from redistricting.gui._dlgEditPlanDetailsPage import dlgEditPlanDetailsPage
+from redistricting.gui.wzpeditplandetails import dlgEditPlanDetailsPage
 from redistricting.models import (
-    DataField,
-    RedistrictingPlan
+    RdsDataField,
+    RdsPlan,
+    deserialize
 )
 
 from ..core.fields import all_fields
@@ -39,7 +40,7 @@ from ._dlgNewProjectFieldsPage import DlgNewProjectFieldsPage
 
 class NewPlanDialog(QWizard):
 
-    def __init__(self, state: State, plan: RedistrictingPlan = None, parent=None):
+    def __init__(self, state: State, plan: RdsPlan = None, parent=None):
         super().__init__(parent)
         self._plan = plan
         self.state = state
@@ -123,7 +124,7 @@ class NewPlanDialog(QWizard):
 
         result = []
         for f in fields:
-            fld = DataField.deserialize({"field": f, "layer": self._plan.popLayer.id()} | all_fields[f])
+            fld = deserialize(RdsDataField, {"field": f, "layer": self._plan.popLayer.id()} | all_fields[f])
             if fld:
                 result.append(fld)
         return result

@@ -1,20 +1,47 @@
+"""QGIS Redistricting Project Plugin - actions
+
+        begin                : 2024-01-24
+        git sha              : $Format:%H$
+        copyright            : (C) 2024 by Cryptodira
+        email                : stuart@cryptodira.org
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 3 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful, but   *
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          *
+ *   GNU General Public License for more details. You should have          *
+ *   received a copy of the GNU General Public License along with this     *
+ *   program. If not, see <http://www.gnu.org/licenses/>.                  *
+ *                                                                         *
+ ***************************************************************************/
+"""
 from typing import (
+    TYPE_CHECKING,
     Callable,
     Optional,
-    Self,
     Union
 )
 
 from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+
+if TYPE_CHECKING:
+    from PyQt5.QtWidgets import QAction
+else:
+    from qgis.PyQt.QtWidgets import QAction
 
 
 class RedistProjectActions(QObject):
     _instance: "RedistProjectActions" = None
     _actions: dict
 
-    def __new__(cls, owner: Optional[QObject] = None) -> Self:
+    def __new__(cls, owner: Optional[QObject] = None):
         if cls._instance is None:
             cls._instance = super(RedistProjectActions, cls).__new__(cls, owner)
             cls._instance._actions = {}

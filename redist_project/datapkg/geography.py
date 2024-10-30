@@ -22,7 +22,25 @@
  ***************************************************************************/
 """
 from dataclasses import dataclass
-from typing import Any
+from typing import (
+    Optional,
+    TypedDict,
+    Union
+)
+
+
+class Field(TypedDict, total=False):
+    field: str
+    type: str
+    constraint: str
+    source: list[str]
+    null: str
+
+
+class Relation(TypedDict):
+    field: str
+    related_geog: str
+    related_field: str
 
 
 @dataclass
@@ -31,12 +49,13 @@ class Geography:
     name: str
     descrip: str
     shp: str
-    cvap: str
-    level: str
+    cvap: Optional[str]
+    level: Union[str, list[str]]
     geoid_len: int
     states: list[str]
     indices: str
-    fields: list[dict[str, Any]]
+    fields: list[Field]
+    relations: list[Relation] = None
 
 
 geographies = {
@@ -85,7 +104,7 @@ geographies = {
             {"field": "aitscc",
                 "type": "TEXT(2)", "constraint": "", "source": []},
             {"field": "vtd", "type": "TEXT(10)", "constraint": "",
-                "source": []},
+                "source": [], "null": "ZZZZZZ"},
             {"field": "vtdi", "type": "TEXT(2)", "constraint": "",
                 "source": []},
             {"field": "cousub", "type": "TEXT(10)", "constraint": "",
@@ -122,6 +141,16 @@ geographies = {
              "source": ["state", "aianhh", "aihhtli"], "null": "99999"},
             {"field": "concityid", "type": "TEXT(4)", "constraint": "REFERENCES concity{dec_yy} (geoid)",
              "source": ["state", "concit"], "null": "99999"},
+        ],
+        relations=[
+            {"field": "countyid", "related_geog": "c", "related_field": "geoid"},
+            {"field": "tractid", "related_geog": "t", "related_field": "geoid"},
+            {"field": "blkgrpid", "related_geog": "bg", "related_field": "geoid"},
+            {"field": "vtdid", "related_geog": "vtd", "related_field": "geoid"},
+            {"field": "placeid", "related_geog": "p", "related_field": "geoid"},
+            {"field": "cousubid", "related_geog": "cousub", "related_field": "geoid"},
+            {"field": "aiannhid", "related_geog": "aiannh", "related_field": "geoid"},
+            {"field": "concityid", "related_geog": "city", "related_field": "geoid"},
         ]
     ),
     "bg": Geography(
@@ -147,13 +176,17 @@ geographies = {
                 "constraint": "NOT NULL REFERENCES county{dec_yy} (geoid)", "source": ["state", "county"]},
             {"field": "tractid", "type": "TEXT(15)",
                 "constraint": "NOT NULL REFERENCES tract{dec_yy} (geoid)", "source": ["state", "county", "tract"]},
+        ],
+        relations=[
+            {"field": "countyid", "related_geog": "c", "related_field": "geoid"},
+            {"field": "tractid", "related_geog": "t", "related_field": "geoid"}
         ]
     ),
     "city": Geography(
         geog="city", name="concity", descrip="City", shp="concity", cvap=None, level="170", geoid_len=7,
         states=["ct", "ga", "in", "ks", "ky", "mt", "tn"],
         indices="""
-            CREATE INDEX IF NOT EXISTS idx_concit{dec_yy}_name ON cousub{dec_yy} (name);
+            CREATE INDEX IF NOT EXISTS idx_concit{dec_yy}_name ON concity{dec_yy} (name);
         """,
         fields=[
             {"field": "geoid",
@@ -233,6 +266,9 @@ geographies = {
                 "type": "TEXT(2)", "constraint": "", "source": []},
             {"field": "countyid", "type": "TEXT(15)",
                 "constraint": "NOT NULL REFERENCES county{dec_yy} (geoid)", "source": ["state", "county"]},
+        ],
+        relations=[
+            {"field": "countyid", "related_geog": "c", "related_field": "geoid"}
         ]
     ),
     "t": Geography(
@@ -256,6 +292,9 @@ geographies = {
                 "cbsa"], "null": "99999"},
             {"field": "countyid", "type": "TEXT(15)",
                 "constraint": "NOT NULL REFERENCES county{dec_yy} (geoid)", "source": ["state", "county"]},
+        ],
+        relations=[
+            {"field": "countyid", "related_geog": "c", "related_field": "geoid"}
         ]
     ),
     "vtd": Geography(
@@ -281,6 +320,9 @@ geographies = {
                 "vtdi"]},
             {"field": "countyid", "type": "TEXT(15)",
                 "constraint": "NOT NULL REFERENCES county{dec_yy} (geoid)", "source": ["state", "county"]},
+        ],
+        relations=[
+            {"field": "countyid", "related_geog": "c", "related_field": "geoid"}
         ]
     ),
     "c": Geography(
