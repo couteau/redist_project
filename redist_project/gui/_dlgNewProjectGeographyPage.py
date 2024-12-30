@@ -32,7 +32,6 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..core.getpkg import build_gpkg
-from ..core.settings import settings
 from ..core.state import (
     State,
     StateList
@@ -162,18 +161,11 @@ class DlgNewProjectGeographyPage(Ui_wzpGeography, QWizardPage):
             self.state_model.beginInsertRows(QModelIndex(), index, index)
             self.state_model.endInsertRows()
             self.cmbState.setCurrentIndex(index)
-            settings.addCustomPackage(
-                state.st.state,
-                state.id,
-                state.year,
-                state.custom_name,
-                str(state.gpkg)
-            )
 
         state = State.fromState(self.state)
         dlg = AcquireStateGpkgDialog(state, True, parent=self.wizard())
         if dlg.exec() == QDialog.Accepted:
-            state.custom_name = dlg.edPackageName.text()
+            state.package_name = dlg.edPackageName.text()
 
             build_gpkg(
                 state,

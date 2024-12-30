@@ -41,9 +41,7 @@ class RedistProjectSetttings:
         if "QGIS_REDIST_PROJECT_DATA_CACHE" in os.environ:
             self.datapath = pathlib.Path(os.environ["QGIS_REDIST_PROJECT_DATA_CACHE"])
         else:
-            self.datapath = pathlib.Path(
-                QgsApplication.qgisSettingsDirPath()
-            ) / "redist_data"
+            self.datapath = pathlib.Path(QgsApplication.qgisSettingsDirPath()) / "redist_data"
         self.iface = iface
         self.settings = QgsSettings()
         self._customPackages = None
@@ -60,9 +58,7 @@ class RedistProjectSetttings:
                 custom_id = self.settings.value("id")
                 name = self.settings.value("name")
                 yr = self.settings.value("year")
-                gpkg = self.settings.value("gpkg-path")
-                self._customPackages.append({"st": st, "id": custom_id, "dec_year": yr,
-                                            "gpkg_path": gpkg, "name": name})
+                self._customPackages.append({"st": st, "id": custom_id, "dec_year": yr, "name": name})
             self.settings.endArray()
             self.settings.endGroup()
 
@@ -82,8 +78,8 @@ class RedistProjectSetttings:
         # self.settings.endGroup()
         pass
 
-    def addCustomPackage(self, st, custom_id: str, year, name, gpkg_path):
-        self.customPackages.append({"st": st, "id": custom_id, "dec_year": year, "gpkg_path": gpkg_path, "name": name})
+    def addCustomPackage(self, st, custom_id: str, year, name):
+        self.customPackages.append({"st": st, "id": custom_id, "dec_year": year, "name": name})
         self.saveCustomPackages()
 
 

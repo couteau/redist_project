@@ -36,7 +36,7 @@ from ..core.state import (
 )
 from ..core.utils import tr
 
-columns = ["id", "packageName", "fips", "stusab"]
+columns = ["id", "package_name", "fips", "stusab"]
 
 
 class StateListModel(QAbstractTableModel):

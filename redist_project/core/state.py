@@ -22,13 +22,10 @@
  *                                                                         *
  ***************************************************************************/
 """
-import pathlib
 import random
 from dataclasses import dataclass
-from typing import Optional
 
 import pandas as pd
-from qgis.PyQt.QtCore import QObject
 from redistricting.utils import spatialite_connect
 
 from ..datapkg.geography import (
@@ -39,36 +36,28 @@ from ..datapkg.state import State as CensusState
 from ..datapkg.state import states as census_states
 from .settings import settings
 
-geog_order = [
 
-]
-
-
-class State(QObject):
+class State:
     def __init__(
         self,
-        st: CensusState,
+        census_state: CensusState,
         year: str,
-        gpkg_path: pathlib.Path = None,
-        custom_id: Optional[str] = None,
-        custom_name: str = ""
+        package_id: str,
+        package_name: str = None
     ):
-        super().__init__(None)
-        self.st = st
+        self.state = census_state
         self.year = year
-        if custom_id is not None and not custom_name:
-            raise ValueError("Custom name must be provided for custom state packages")
-        self.custom_id = custom_id
-        self.custom_name = custom_name
-        if gpkg_path is None:
-            self.gpkg = settings.datapath / geopackage_name(self)
-        else:
-            self.gpkg = gpkg_path
+        self.package_id = package_id
+        self.package_name = package_name or census_state.name
+        self.gpkg = settings.datapath / f'{package_id}.gpkg'
 
     @classmethod
     def fromState(cls, state: 'State') -> 'State':
         custom_id = f"{random.randint(0, 0xffffff):06x}"
-        return cls(state.st, state.year, custom_id=custom_id, custom_name=custom_id)
+        return cls(state.state, state.year, package_id=custom_id)
+
+    def gpkg_exists(self):
+        return self.gpkg.exists()
 
     def get_geographies(self) -> dict[str, Geography]:
         if not self.gpkg_exists():
@@ -98,9 +87,6 @@ class State(QObject):
             )
             return [r[0] for r in c]
 
-    def gpkg_exists(self):
-        return self.gpkg and self.gpkg.exists()
-
     def has_cvap(self):
         if not self.gpkg_exists():
             return False
@@ -121,52 +107,44 @@ class State(QObject):
 
     @property
     def id(self):
-        return self.code if self.custom_id is None else f"{self.code}@{self.custom_id}"
+        return f"{self.code}@{self.package_id}"
 
     @property
     def code(self):
-        return self.st.state
+        return self.state.state
 
     @property
     def name(self):
-        return self.st.name
-
-    @property
-    def packageName(self):
-        return self.name if self.custom_id is None else self.custom_name
+        return self.state.name
 
     @property
     def fips(self):
-        return self.st.fips
+        return self.state.fips
 
     @property
     def stusab(self):
-        return self.st.state.upper()
+        return self.state.state.upper()
 
 
 class StateList:
     def __init__(self, dec_year, states=None):
         self.dec_year = dec_year
         if states is None:
-            self.states = {s: State(st, dec_year)
-                           for s, st in census_states.items()}
+            self._states = {s: State(st, dec_year, st.name) for s, st in census_states.items()}
         else:
-            self.states = {
-                s: State(census_states[s], dec_year) for s in states}
+            self._states = {s: State(census_states[s], dec_year, census_states[s]) for s in states}
 
         self.custom_pkgs = {}
         for s in settings.customPackages:
             st = State(
                 census_states[s["st"]],
                 year=s["dec_year"],
-                gpkg_path=pathlib.Path(s["gpkg_path"]),
-                custom_id=s["id"],
-                custom_name=s["name"]
+                package_id=s["id"],
+                package_name=s["name"]
             )
             self.custom_pkgs[st.code] = st
 
-        if self.custom_pkgs:
-            self.sort_states()
+        self.sort_states()
 
     def __getitem__(self, __index) -> State:
         if isinstance(__index, str):
@@ -213,15 +191,23 @@ class StateList:
         return len([key for key, value in State.__dict__.items() if isinstance(value, property)])
 
     def sort_states(self):
-        keys = {*self.states.keys(), *self.custom_pkgs.keys()}
+        keys = {*self._states.keys(), *self.custom_pkgs.keys()}
         states = dict.fromkeys(sorted(keys))
-        states.update(self.states)
+        states.update(self._states)
         states.update(self.custom_pkgs)
         self.states = states
 
     def add_custom_package(self, state: State):
         self.custom_pkgs[state.id] = state
         self.sort_states()
+
+        settings.addCustomPackage(
+            state.state.state,
+            state.id,
+            state.year,
+            state.package_name,
+        )
+
         return state
 
 
@@ -234,4 +220,4 @@ class Subdivision:
 
 
 def geopackage_name(state: State):
-    return f"{state.packageName.replace(' ', '_').lower()}.gpkg"
+    return f"{state.package_name.replace(' ', '_').lower()}.gpkg"

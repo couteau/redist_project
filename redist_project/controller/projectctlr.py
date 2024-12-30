@@ -31,14 +31,14 @@ from typing import (
     Optional
 )
 
-from qgis.core import (
-    QgsApplication,
-    QgsProject
-)
+from qgis.core import QgsProject
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QObject
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QDialog
+from qgis.PyQt.QtWidgets import (
+    QDialog,
+    QMessageBox
+)
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.utils import plugins
 from redistricting.controllers import PlanController
@@ -60,7 +60,6 @@ from ..core.getpkg import (
     build_gpkg,
     download_gpkg
 )
-from ..core.settings import settings
 from ..core.state import (
     State,
     StateList
@@ -106,24 +105,6 @@ class ProjectController(QObject):
 
         self.advancedNewPlan: Callable = None  # pylint: disable=deprecated-typing-alias
         self.advancedEditPlan: Callable = None  # pylint: disable=deprecated-typing-alias
-
-        self.buildPackageAction = self.actions.createAction(
-            "buildPackageAction",
-            QgsApplication.getThemeIcon('/mNewFeature'),
-            tr("State Package"),
-            tr("Download state redistricting data package"),
-            self.acquireStatePackage,
-            self
-        )
-
-        self.customPackageAction = self.actions.createAction(
-            "customPackageAction",
-            QgsApplication.getThemeIcon('/mNewFeature'),
-            tr("Create Package"),
-            tr("Create a custom state redistricting data package"),
-            self.createCustomPackage,
-            self
-        )
 
     def load(self):
         self.redist_plugin: Redistricting = plugins.get("redistricting", None)
@@ -220,7 +201,7 @@ class ProjectController(QObject):
                 )
                 self.readProjectParams()
 
-    def showCreatePackageDialog(
+    def showPackageDialog(
         self,
         state: State,
         custom: bool = False,
@@ -232,7 +213,7 @@ class ProjectController(QObject):
                 download_gpkg(state, self.newProjectDlg)
             else:
                 if custom:
-                    state.custom_name = dlg.edPackageName.text()
+                    state.package_name = dlg.edPackageName.text()
 
                 build_gpkg(
                     state,
@@ -248,36 +229,31 @@ class ProjectController(QObject):
 
         return False
 
-    def acquireStatePackage(self):
-        self.showCreatePackageDialog(self.new_state)
-
-    def createCustomPackage(self):
-        def addCustomPackage():
-            self.new_state = state
-            self.states[state.year].add_custom_package(state)
-            settings.addCustomPackage(
-                state.st.state,
-                state.id,
-                state.year,
-                state.custom_name,
-                str(state.gpkg)
-            )
-
-        state = State.fromState(self.new_state)
-        self.showCreatePackageDialog(state, True, on_created=addCustomPackage)
-
     def stateChanged(self, state: Optional[State]):
-        self.new_state = state
         if state is None:
             return
 
         if not state.gpkg_exists():
-            self.acquireStatePackage()
+            self.showPackageDialog(state)
 
     def newPlan(self):
         if not self.isRedistProject:
             self.advancedNewPlan()
             return
+
+        # if it's a new project that has never been saved, it must be saved before
+        # creating a plan so that the plan files can follow the project file
+        if self.project.lastSaveDateTime().isNull():
+            if QMessageBox.warning(
+                self.iface.mainWindow(),
+                tr("Confirm Save"),
+                tr("Your project must be saved before a redistricting plan can be created. Save now?"),
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+                QMessageBox.Save
+            ) != QMessageBox.Save:
+                return
+
+            self.iface.actionSaveProject().trigger()
 
         dlg = NewPlanDialog(self.state, self.template, self.iface.mainWindow())
         r = dlg.exec()
